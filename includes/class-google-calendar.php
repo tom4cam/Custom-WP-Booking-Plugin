@@ -1,0 +1,399 @@
+<?php
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Google Calendar integration using OAuth2 credentials.
+ * No external library — all requests via wp_remote_post / wp_remote_get.
+ */
+class Caswell_Google_Calendar {
+
+    private $access_token = null;
+
+    /* ── OAuth2 token via refresh token ────────────────────────────────── */
+
+    private function get_access_token() {
+        if ( $this->access_token ) return $this->access_token;
+
+        $cached = get_transient( 'caswell_google_token' );
+        if ( $cached ) {
+            $this->access_token = $cached;
+            return $cached;
+        }
+
+        $client_id     = caswell_get_option( 'google_client_id' );
+        $client_secret = caswell_decrypt( caswell_get_option( 'google_client_secret' ) );
+        $refresh_token = caswell_decrypt( caswell_get_option( 'google_refresh_token' ) );
+
+        if ( ! $client_id || ! $client_secret || ! $refresh_token ) return false;
+
+        $response = wp_remote_post( 'https://oauth2.googleapis.com/token', [
+            'timeout' => 15,
+            'body'    => [
+                'client_id'     => $client_id,
+                'client_secret' => $client_secret,
+                'refresh_token' => $refresh_token,
+                'grant_type'    => 'refresh_token',
+            ],
+        ] );
+
+        if ( is_wp_error( $response ) ) {
+            caswell_log( 'gcal', 'Token refresh failed: ' . $response->get_error_message() );
+            return false;
+        }
+
+        $status = wp_remote_retrieve_response_code( $response );
+        $body   = json_decode( wp_remote_retrieve_body( $response ), true );
+
+        if ( $status < 200 || $status >= 300 || empty( $body['access_token'] ) ) {
+            caswell_log( 'gcal', "Token refresh HTTP {$status}", [
+                'error' => $body['error'] ?? '',
+                'desc'  => $body['error_description'] ?? '',
+            ] );
+            return false;
+        }
+
+        $token   = $body['access_token'];
+        $expires = (int) ( $body['expires_in'] ?? 3600 );
+        set_transient( 'caswell_google_token', $token, $expires - 60 );
+        $this->access_token = $token;
+        return $token;
+    }
+
+    /* ── Fetch events from a calendar ─────────────────────────────────── */
+
+    /**
+     * @param string $calendar_id  Google Calendar ID
+     * @param string $time_min     RFC3339 datetime
+     * @param string $time_max     RFC3339 datetime
+     * @return array               Array of event objects
+     */
+    private function fetch_events( $calendar_id, $time_min, $time_max ) {
+        $cache_key = 'caswell_gcal_' . md5( $calendar_id . $time_min . $time_max );
+        $cached    = get_transient( $cache_key );
+        if ( false !== $cached ) return $cached;
+
+        $token = $this->get_access_token();
+        if ( ! $token ) return [];
+
+        $url = add_query_arg( [
+            'timeMin'      => urlencode( $time_min ),
+            'timeMax'      => urlencode( $time_max ),
+            'singleEvents' => 'true',
+            'orderBy'      => 'startTime',
+            'maxResults'   => 250,
+        ], "https://www.googleapis.com/calendar/v3/calendars/" . rawurlencode( $calendar_id ) . "/events" );
+
+        $response = wp_remote_get( $url, [
+            'timeout' => 15,
+            'headers' => [ 'Authorization' => "Bearer {$token}" ],
+        ] );
+
+        if ( is_wp_error( $response ) ) {
+            caswell_log( 'gcal', 'Fetch events failed: ' . $response->get_error_message(), [
+                'calendar' => $calendar_id,
+            ] );
+            return [];
+        }
+
+        $status = wp_remote_retrieve_response_code( $response );
+        $body   = json_decode( wp_remote_retrieve_body( $response ), true );
+
+        if ( $status < 200 || $status >= 300 ) {
+            caswell_log( 'gcal', "Fetch events HTTP {$status}", [
+                'calendar' => $calendar_id,
+                'error'    => $body['error']['message'] ?? 'Unknown',
+            ] );
+            return [];
+        }
+
+        $events = $body['items'] ?? [];
+
+        set_transient( $cache_key, $events, 15 * MINUTE_IN_SECONDS );
+        return $events;
+    }
+
+    /* ── Public API ────────────────────────────────────────────────────── */
+
+    /**
+     * Get available windows from shared calendar filtered by keyword.
+     *
+     * @param string $date  Y-m-d
+     * @return array  [ ['start' => DateTime, 'end' => DateTime], ... ]
+     */
+    public function get_available_windows( $date ) {
+        // Validate the date is real (not e.g. 2025-02-31)
+        $parts = explode( '-', $date );
+        if ( count( $parts ) !== 3 || ! checkdate( (int) $parts[1], (int) $parts[2], (int) $parts[0] ) ) {
+            return [];
+        }
+
+        $shared_cal_id  = caswell_get_option( 'shared_calendar_id' );
+        $personal_cal_id= caswell_get_option( 'personal_calendar_id' );
+        $keyword        = strtolower( trim( caswell_get_option( 'calendar_keyword', 'glow' ) ) );
+
+        if ( ! $shared_cal_id ) return [];
+
+        $tz       = new DateTimeZone( wp_timezone_string() );
+        $day_start= new DateTime( "{$date} 00:00:00", $tz );
+        $day_end  = new DateTime( "{$date} 23:59:59", $tz );
+        $time_min = $day_start->format( DateTime::RFC3339 );
+        $time_max = $day_end->format( DateTime::RFC3339 );
+
+        // 1. Keyword-matched windows from shared calendar
+        $shared_events = $this->fetch_events( $shared_cal_id, $time_min, $time_max );
+        $glow_windows  = [];
+        foreach ( $shared_events as $event ) {
+            $title = strtolower( $event['summary'] ?? '' );
+            $desc  = strtolower( $event['description'] ?? '' );
+            if ( strpos( $title, $keyword ) === false && strpos( $desc, $keyword ) === false ) {
+                continue;
+            }
+            $start = $this->parse_event_datetime( $event, 'start', $tz );
+            $end   = $this->parse_event_datetime( $event, 'end',   $tz );
+            if ( $start && $end && $end > $start ) {
+                $glow_windows[] = [ 'start' => $start, 'end' => $end ];
+            }
+        }
+
+        // 2. Weekly schedule window (primary source; Glow events are fallback)
+        $weekly   = caswell_get_option( 'weekly_availability', [] );
+        $day_num  = (int) $day_start->format( 'N' ); // 1=Mon … 7=Sun
+        $schedule = $weekly[ $day_num ] ?? [];
+
+        $schedule_window = [];
+        if ( ! empty( $schedule['enabled'] ) && ! empty( $schedule['start'] ) && ! empty( $schedule['end'] ) ) {
+            $sched_start = new DateTime( "{$date} {$schedule['start']}:00", $tz );
+            $sched_end   = new DateTime( "{$date} {$schedule['end']}:00",   $tz );
+            if ( $sched_end > $sched_start ) {
+                $schedule_window = [ [ 'start' => $sched_start, 'end' => $sched_end ] ];
+            }
+        }
+
+        $windows = ! empty( $schedule_window ) ? $schedule_window : $glow_windows;
+        if ( empty( $windows ) ) return [];
+
+        // 3. Blocks: personal calendar events
+        $blocks = [];
+        if ( $personal_cal_id ) {
+            $personal_events = $this->fetch_events( $personal_cal_id, $time_min, $time_max );
+            foreach ( $personal_events as $event ) {
+                $start = $this->parse_event_datetime( $event, 'start', $tz );
+                $end   = $this->parse_event_datetime( $event, 'end',   $tz );
+                if ( $start && $end ) {
+                    $blocks[] = [ 'start' => $start, 'end' => $end ];
+                }
+            }
+        }
+
+        // 4. Blocks from existing DB bookings
+        $db_bookings = Caswell_Booking_DB::get_bookings_for_range(
+            $day_end->format( 'Y-m-d H:i:s' ),
+            $day_start->format( 'Y-m-d H:i:s' )
+        );
+        foreach ( $db_bookings as $booking ) {
+            $bs = new DateTime( $booking->start_datetime, $tz );
+            $be = new DateTime( $booking->end_datetime,   $tz );
+            $blocks[] = [ 'start' => $bs, 'end' => $be ];
+        }
+
+        // 5. Admin time blocks from DB
+        $admin_blocks = Caswell_Booking_DB::get_blocks_for_range(
+            $day_start->format( 'Y-m-d H:i:s' ),
+            $day_end->format( 'Y-m-d H:i:s' )
+        );
+        foreach ( $admin_blocks as $block ) {
+            $bs = new DateTime( $block->start_datetime, $tz );
+            $be = new DateTime( $block->end_datetime,   $tz );
+            $blocks[] = [ 'start' => $bs, 'end' => $be ];
+        }
+
+        // 6. Subtract blocks from windows
+        return $this->subtract_blocks( $windows, $blocks );
+    }
+
+    /**
+     * Subtract blocks from windows, return remaining free windows.
+     */
+    private function subtract_blocks( $windows, $blocks ) {
+        foreach ( $blocks as $block ) {
+            $new_windows = [];
+            foreach ( $windows as $win ) {
+                // No overlap
+                if ( $block['end'] <= $win['start'] || $block['start'] >= $win['end'] ) {
+                    $new_windows[] = $win;
+                    continue;
+                }
+                // Block overlaps — split window
+                if ( $block['start'] > $win['start'] ) {
+                    $new_windows[] = [ 'start' => $win['start'], 'end' => $block['start'] ];
+                }
+                if ( $block['end'] < $win['end'] ) {
+                    $new_windows[] = [ 'start' => $block['end'], 'end' => $win['end'] ];
+                }
+            }
+            $windows = $new_windows;
+        }
+        return $windows;
+    }
+
+    /**
+     * Break free windows into discrete appointment slots.
+     *
+     * @param array  $windows        Free windows [ ['start'=>DT, 'end'=>DT], ... ]
+     * @param int    $session_length Minutes
+     * @param int    $buffer         Buffer minutes after each slot
+     * @return array  [ ['start' => timestamp, 'end' => timestamp], ... ]
+     */
+    public function windows_to_slots( $windows, $session_length, $buffer ) {
+        $slots          = [];
+        $session_secs   = $session_length * 60;
+        $buffer_secs    = $buffer * 60;
+        $total_needed   = $session_secs + $buffer_secs;
+
+        foreach ( $windows as $win ) {
+            $cursor = clone $win['start'];
+            while ( true ) {
+                $slot_end = (clone $cursor)->modify( "+{$session_length} minutes" );
+                // Must fit session + buffer within window
+                $with_buffer = (clone $cursor)->modify( "+{$session_length} minutes +{$buffer} minutes" );
+                if ( $with_buffer > $win['end'] && $slot_end > $win['end'] ) break;
+                if ( $slot_end > $win['end'] ) break;
+
+                $slots[] = [
+                    'start' => $cursor->getTimestamp(),
+                    'end'   => $slot_end->getTimestamp(),
+                ];
+
+                // Advance by session + buffer
+                $cursor->modify( "+{$session_length} minutes +{$buffer} minutes" );
+            }
+        }
+
+        return $slots;
+    }
+
+    private function parse_event_datetime( $event, $type, $tz ) {
+        $dt_data = $event[ $type ] ?? [];
+        if ( isset( $dt_data['dateTime'] ) ) {
+            return new DateTime( $dt_data['dateTime'], $tz );
+        }
+        if ( isset( $dt_data['date'] ) ) {
+            // All-day event
+            return new DateTime( $dt_data['date'] . ( $type === 'end' ? ' 23:59:59' : ' 00:00:00' ), $tz );
+        }
+        return null;
+    }
+
+    /**
+     * Create a calendar event.
+     *
+     * @param string   $calendar_id  'primary' or a full calendar ID
+     * @param string   $title
+     * @param DateTime $start
+     * @param DateTime $end
+     * @param string   $description
+     * @return string|false  Event ID on success, false on failure
+     */
+    public function create_event( $calendar_id, $title, DateTime $start, DateTime $end, $description = '' ) {
+        $token = $this->get_access_token();
+        if ( ! $token ) return false;
+
+        $url  = 'https://www.googleapis.com/calendar/v3/calendars/' . rawurlencode( $calendar_id ) . '/events';
+        $tz_string = wp_timezone_string();
+        $body = [
+            'summary'     => $title,
+            'description' => $description,
+            'start'       => [ 'dateTime' => $start->format( DateTime::RFC3339 ), 'timeZone' => $tz_string ],
+            'end'         => [ 'dateTime' => $end->format( DateTime::RFC3339 ),   'timeZone' => $tz_string ],
+        ];
+
+        $response = wp_remote_post( $url, [
+            'timeout' => 15,
+            'headers' => [
+                'Authorization' => "Bearer {$token}",
+                'Content-Type'  => 'application/json',
+            ],
+            'body' => wp_json_encode( $body ),
+        ] );
+
+        if ( is_wp_error( $response ) ) {
+            caswell_log( 'gcal', 'Create event failed: ' . $response->get_error_message(), [
+                'calendar' => $calendar_id,
+                'title'    => $title,
+            ] );
+            return false;
+        }
+
+        $status = wp_remote_retrieve_response_code( $response );
+        $data   = json_decode( wp_remote_retrieve_body( $response ), true );
+
+        if ( $status < 200 || $status >= 300 ) {
+            caswell_log( 'gcal', "Create event HTTP {$status}", [
+                'calendar' => $calendar_id,
+                'title'    => $title,
+                'error'    => $data['error']['message'] ?? 'Unknown',
+            ] );
+            return false;
+        }
+
+        $event_id = $data['id'] ?? false;
+        if ( $event_id ) {
+            caswell_log( 'gcal', "Event created: {$event_id} on {$calendar_id}" );
+        }
+        return $event_id;
+    }
+
+    /**
+     * Delete a calendar event.
+     *
+     * @param string $calendar_id  Calendar ID
+     * @param string $event_id     Google Calendar event ID
+     * @return bool
+     */
+    public function delete_event( $calendar_id, $event_id ) {
+        $token = $this->get_access_token();
+        if ( ! $token ) return false;
+
+        $url = 'https://www.googleapis.com/calendar/v3/calendars/'
+             . rawurlencode( $calendar_id ) . '/events/' . rawurlencode( $event_id );
+
+        $response = wp_remote_request( $url, [
+            'method'  => 'DELETE',
+            'timeout' => 15,
+            'headers' => [ 'Authorization' => "Bearer {$token}" ],
+        ] );
+
+        if ( is_wp_error( $response ) ) {
+            caswell_log( 'gcal', 'Delete event failed: ' . $response->get_error_message() );
+            return false;
+        }
+
+        $status = wp_remote_retrieve_response_code( $response );
+        if ( $status >= 200 && $status < 300 ) {
+            caswell_log( 'gcal', "Event deleted: {$event_id} from {$calendar_id}" );
+            return true;
+        }
+
+        caswell_log( 'gcal', "Delete event HTTP {$status}", [ 'event_id' => $event_id ] );
+        return false;
+    }
+
+    /**
+     * Check if a specific slot is still available.
+     */
+    public function is_slot_available( $start_ts, $session_length ) {
+        $tz    = new DateTimeZone( wp_timezone_string() );
+        $start = new DateTime( '@' . $start_ts );
+        $start->setTimezone( $tz );
+        $date  = $start->format( 'Y-m-d' );
+
+        $windows = $this->get_available_windows( $date );
+        $buffer  = (int) caswell_get_option( 'buffer_time', 15 );
+        $slots   = $this->windows_to_slots( $windows, $session_length, $buffer );
+
+        foreach ( $slots as $slot ) {
+            if ( $slot['start'] === $start_ts ) return true;
+        }
+        return false;
+    }
+}

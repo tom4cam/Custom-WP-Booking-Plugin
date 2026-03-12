@@ -1,0 +1,21 @@
+# WordPress
+wp-config.php
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node (if ever added)
+node_modules/
+
+# Environment
+.env

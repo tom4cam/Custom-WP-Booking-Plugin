@@ -1,0 +1,680 @@
+/* ================================================================
+   Caswell Booking — Public Styles
+   Clean, calming aesthetic: soft neutrals, soft greens, sans-serif
+   ================================================================ */
+
+:root {
+    --cw-primary:     #4a7c6f;
+    --cw-primary-dk:  #3a6259;
+    --cw-accent:      #8fbc8f;
+    --cw-text:        #333333;
+    --cw-text-light:  #666666;
+    --cw-bg:          #fafaf8;
+    --cw-bg-card:     #ffffff;
+    --cw-border:      #e0e0da;
+    --cw-radius:      8px;
+    --cw-shadow:      0 2px 12px rgba(0,0,0,0.08);
+    --cw-danger:      #c0392b;
+    --cw-success:     #27ae60;
+    --cw-font:        'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* ── Booking Wrap ──────────────────────────────────────────────────── */
+.caswell-booking-wrap,
+.caswell-account-wrap {
+    font-family: var(--cw-font);
+    color: var(--cw-text);
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 24px 16px;
+}
+
+/* ── Steps ─────────────────────────────────────────────────────────── */
+.caswell-step {
+    background: var(--cw-bg-card);
+    border: 1px solid var(--cw-border);
+    border-radius: var(--cw-radius);
+    padding: 28px 32px;
+    box-shadow: var(--cw-shadow);
+}
+
+@media (max-width: 480px) {
+    .caswell-step { padding: 20px 16px; }
+}
+
+.caswell-step-title {
+    margin: 0 0 20px;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--cw-primary);
+    border-bottom: 2px solid var(--cw-accent);
+    padding-bottom: 10px;
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────── */
+.caswell-btn {
+    display: inline-block;
+    padding: 11px 24px;
+    border-radius: var(--cw-radius);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: background 0.2s, transform 0.1s;
+    text-decoration: none;
+    text-align: center;
+}
+.caswell-btn:active { transform: scale(0.98); }
+
+.caswell-btn-primary {
+    background: var(--cw-primary);
+    color: #fff;
+}
+.caswell-btn-primary:hover { background: var(--cw-primary-dk); }
+
+.caswell-btn-secondary {
+    background: transparent;
+    color: var(--cw-primary);
+    border: 2px solid var(--cw-primary);
+}
+.caswell-btn-secondary:hover { background: var(--cw-primary); color: #fff; }
+
+.caswell-btn-danger {
+    background: var(--cw-danger);
+    color: #fff;
+}
+.caswell-btn-danger:hover { background: #a93226; }
+
+.caswell-btn-venmo {
+    background: #008CFF;
+    color: #fff;
+}
+.caswell-btn-sm { padding: 6px 14px; font-size: 0.85rem; }
+
+.caswell-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ── Date picker ───────────────────────────────────────────────────── */
+.caswell-date-picker-wrap,
+.caswell-length-wrap {
+    margin-bottom: 20px;
+}
+
+.caswell-date-picker-wrap label,
+.caswell-length-wrap label:first-child {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--cw-text);
+}
+
+#caswell-date {
+    padding: 10px 14px;
+    border: 1px solid var(--cw-border);
+    border-radius: var(--cw-radius);
+    font-size: 1rem;
+    font-family: var(--cw-font);
+    width: 100%;
+    max-width: 260px;
+    box-sizing: border-box;
+}
+#caswell-date:focus {
+    outline: none;
+    border-color: var(--cw-primary);
+    box-shadow: 0 0 0 3px rgba(74,124,111,0.15);
+}
+
+/* ── Session length selector ───────────────────────────────────────── */
+.caswell-length-options {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.caswell-length-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 14px 20px;
+    border: 2px solid var(--cw-border);
+    border-radius: var(--cw-radius);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    font-weight: 600;
+    min-width: 90px;
+}
+.caswell-length-btn input[type="radio"] { display: none; }
+.caswell-length-btn:hover { border-color: var(--cw-accent); }
+.caswell-length-btn.selected {
+    border-color: var(--cw-primary);
+    background: rgba(74,124,111,0.08);
+    color: var(--cw-primary);
+}
+.caswell-price {
+    font-size: 0.85rem;
+    font-weight: 400;
+    color: var(--cw-text-light);
+    margin-top: 4px;
+}
+
+/* ── Timezone label ────────────────────────────────────────────────── */
+.caswell-tz-label {
+    font-size: 0.8rem;
+    color: var(--cw-text-light);
+    font-style: italic;
+    margin-bottom: 8px;
+}
+
+/* ── Slots grid ────────────────────────────────────────────────────── */
+.caswell-slot-date-label {
+    font-weight: 600;
+    color: var(--cw-primary);
+    margin-bottom: 16px;
+}
+
+.caswell-slots-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.caswell-slot-btn {
+    padding: 12px 8px;
+    border: 2px solid var(--cw-border);
+    border-radius: var(--cw-radius);
+    background: var(--cw-bg-card);
+    text-align: center;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: border-color 0.2s, background 0.2s;
+}
+.caswell-slot-btn:hover {
+    border-color: var(--cw-primary);
+    background: rgba(74,124,111,0.06);
+}
+.caswell-slot-btn.selected {
+    border-color: var(--cw-primary);
+    background: var(--cw-primary);
+    color: #fff;
+}
+
+/* ── Form fields ───────────────────────────────────────────────────── */
+.caswell-field {
+    margin-bottom: 16px;
+}
+.caswell-field label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+    font-size: 0.9rem;
+}
+.caswell-field input[type="text"],
+.caswell-field input[type="email"],
+.caswell-field input[type="tel"],
+.caswell-field input[type="password"],
+.caswell-field input[type="date"],
+.caswell-field input[type="number"],
+.caswell-field select,
+.caswell-field textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--cw-border);
+    border-radius: var(--cw-radius);
+    font-size: 0.95rem;
+    font-family: var(--cw-font);
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+.caswell-field input:focus,
+.caswell-field select:focus,
+.caswell-field textarea:focus {
+    outline: none;
+    border-color: var(--cw-primary);
+    box-shadow: 0 0 0 3px rgba(74,124,111,0.15);
+}
+
+.caswell-field-row { display: flex; gap: 16px; }
+.caswell-field-row-2 .caswell-field { flex: 1; }
+
+@media (max-width: 480px) {
+    .caswell-field-row { flex-direction: column; gap: 0; }
+}
+
+.required { color: var(--cw-danger); }
+
+/* ── Recurring options ─────────────────────────────────────────────── */
+.caswell-recurring-toggle {
+    margin-bottom: 16px;
+    padding: 12px 16px;
+    background: var(--cw-bg);
+    border-radius: var(--cw-radius);
+    border: 1px solid var(--cw-border);
+}
+
+.caswell-recurring-options {
+    padding: 16px;
+    background: #f0f7f5;
+    border-radius: var(--cw-radius);
+    margin-bottom: 16px;
+    border: 1px solid var(--cw-accent);
+}
+
+/* ── Payment section ───────────────────────────────────────────────── */
+.caswell-payment-section h4 {
+    margin: 0 0 12px;
+    font-size: 1rem;
+    color: var(--cw-text);
+}
+
+.caswell-payment-methods {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.caswell-payment-opt {
+    padding: 10px 18px;
+    border: 2px solid var(--cw-border);
+    border-radius: var(--cw-radius);
+    cursor: pointer;
+    font-weight: 600;
+    transition: border-color 0.2s;
+}
+.caswell-payment-opt input { margin-right: 6px; }
+.caswell-payment-opt.selected {
+    border-color: var(--cw-primary);
+    color: var(--cw-primary);
+}
+
+.caswell-square-form {
+    padding: 16px;
+    border: 1px solid var(--cw-border);
+    border-radius: var(--cw-radius);
+    background: var(--cw-bg);
+    margin-bottom: 16px;
+}
+
+/* Square card element target */
+#card-container { min-height: 89px; }
+
+/* ── Error / notice ────────────────────────────────────────────────── */
+.caswell-error {
+    background: #fdecea;
+    border: 1px solid #f5c6cb;
+    color: var(--cw-danger);
+    padding: 12px 16px;
+    border-radius: var(--cw-radius);
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+}
+
+.caswell-notice {
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    color: #856404;
+    padding: 12px 16px;
+    border-radius: var(--cw-radius);
+    font-size: 0.9rem;
+}
+
+/* ── Loading spinner ───────────────────────────────────────────────── */
+.caswell-loading {
+    color: var(--cw-text-light);
+    font-style: italic;
+    padding: 16px 0;
+}
+.caswell-loading::before {
+    content: '';
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--cw-border);
+    border-top-color: var(--cw-primary);
+    border-radius: 50%;
+    animation: caswell-spin 0.7s linear infinite;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+@keyframes caswell-spin { to { transform: rotate(360deg); } }
+
+/* ── Form actions row ──────────────────────────────────────────────── */
+.caswell-form-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 24px;
+}
+
+/* ── Confirmation ──────────────────────────────────────────────────── */
+.caswell-confirmation {
+    text-align: center;
+    padding: 40px 32px;
+}
+.caswell-confirmation-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--cw-success);
+    color: #fff;
+    font-size: 2rem;
+    line-height: 64px;
+    margin: 0 auto 20px;
+}
+.caswell-confirmation h3 {
+    font-size: 1.5rem;
+    color: var(--cw-primary);
+    margin: 0 0 12px;
+}
+.caswell-venmo-section {
+    background: #f0f7ff;
+    border: 1px solid #b3d4f0;
+    border-radius: var(--cw-radius);
+    padding: 20px;
+    margin: 20px 0;
+    text-align: center;
+}
+
+/* ── Account styles ────────────────────────────────────────────────── */
+.caswell-account-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+}
+.caswell-account-header h2 { margin: 0; }
+.caswell-account-header p  { margin: 0; flex: 1; }
+
+.caswell-account-section {
+    background: var(--cw-bg-card);
+    border: 1px solid var(--cw-border);
+    border-radius: var(--cw-radius);
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    box-shadow: var(--cw-shadow);
+}
+.caswell-account-section h3 {
+    margin: 0 0 16px;
+    color: var(--cw-primary);
+    font-size: 1.1rem;
+    border-bottom: 1px solid var(--cw-border);
+    padding-bottom: 10px;
+}
+
+.caswell-bookings-list { display: flex; flex-direction: column; gap: 12px; }
+
+.caswell-booking-card {
+    padding: 14px 18px;
+    border: 1px solid var(--cw-border);
+    border-radius: var(--cw-radius);
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 4px;
+}
+.caswell-booking-card.caswell-booking-past { opacity: 0.7; }
+.caswell-booking-date { font-weight: 600; }
+.caswell-booking-time { color: var(--cw-text-light); font-size: 0.9rem; }
+.caswell-booking-meta { font-size: 0.85rem; color: var(--cw-text-light); }
+
+.caswell-status { font-weight: 600; }
+.caswell-status-confirmed { color: var(--cw-success); }
+.caswell-status-cancelled  { color: var(--cw-danger); }
+.caswell-status-pending    { color: #e67e22; }
+.caswell-recurring-badge {
+    background: var(--cw-accent);
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.caswell-empty { color: var(--cw-text-light); font-style: italic; }
+
+/* ── Auth panel ────────────────────────────────────────────────────── */
+.caswell-auth-wrap {
+    background: var(--cw-bg-card);
+    border: 1px solid var(--cw-border);
+    border-radius: var(--cw-radius);
+    padding: 28px 32px;
+    box-shadow: var(--cw-shadow);
+    max-width: 400px;
+    margin: 0 auto;
+}
+.caswell-auth-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 24px;
+    border-bottom: 2px solid var(--cw-border);
+}
+.caswell-auth-tab {
+    padding: 10px 20px;
+    border: none;
+    background: none;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--cw-text-light);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+}
+.caswell-auth-tab.active {
+    color: var(--cw-primary);
+    border-bottom-color: var(--cw-primary);
+}
+
+/* ═══════════════════════════════════════════════════════
+   Caswell Home Page — Single Page Template Styles
+   ═══════════════════════════════════════════════════════ */
+
+.caswell-page * { box-sizing: border-box; }
+
+.caswell-page {
+    font-family: var(--cw-font);
+    color: var(--cw-text);
+    line-height: 1.7;
+}
+
+/* ── Nav ───────────────────────────────────────────────────────────── */
+.cw-nav {
+    background: #fff;
+    padding: 0 5%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    height: 64px;
+}
+.cw-nav-logo {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--cw-primary);
+    text-decoration: none;
+}
+.cw-nav-links {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    gap: 28px;
+    align-items: center;
+}
+.cw-nav-links a {
+    text-decoration: none;
+    color: var(--cw-text);
+    font-weight: 500;
+    transition: color 0.2s;
+}
+.cw-nav-links a:hover { color: var(--cw-primary); }
+.cw-nav-phone { font-weight: 600; color: var(--cw-primary); }
+
+@media (max-width: 600px) {
+    .cw-nav-links { display: none; }
+}
+
+/* ── Hero ──────────────────────────────────────────────────────────── */
+.cw-hero {
+    background: linear-gradient(135deg, #3a6259 0%, #4a7c6f 50%, #8fbc8f 100%);
+    color: #fff;
+    text-align: center;
+    padding: 100px 20px;
+    position: relative;
+}
+.cw-hero-tagline {
+    font-size: clamp(1.8rem, 4vw, 3rem);
+    font-weight: 700;
+    margin: 0 0 16px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.cw-hero-sub {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    margin: 0 0 32px;
+}
+.cw-hero .caswell-btn {
+    font-size: 1.1rem;
+    padding: 14px 36px;
+    background: #fff;
+    color: var(--cw-primary);
+}
+.cw-hero .caswell-btn:hover { background: #f0f7f5; }
+
+/* ── Sections ──────────────────────────────────────────────────────── */
+.cw-section {
+    padding: 64px 5%;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+.cw-section-alt {
+    background: #f5f9f7;
+    padding: 64px 0;
+}
+.cw-section-alt .cw-section { padding-top: 0; padding-bottom: 0; }
+
+.cw-section-title {
+    text-align: center;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--cw-primary);
+    margin: 0 0 40px;
+}
+
+/* ── About ─────────────────────────────────────────────────────────── */
+.cw-about {
+    display: flex;
+    gap: 48px;
+    align-items: center;
+}
+.cw-about-photo {
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid var(--cw-accent);
+    flex-shrink: 0;
+    background: #d0e8e0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4rem;
+    color: var(--cw-primary);
+}
+.cw-about-text h2 { color: var(--cw-primary); margin: 0 0 8px; }
+.cw-credentials {
+    display: inline-block;
+    background: var(--cw-accent);
+    color: #fff;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+@media (max-width: 680px) {
+    .cw-about { flex-direction: column; text-align: center; }
+}
+
+/* ── Services ──────────────────────────────────────────────────────── */
+.cw-services-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 24px;
+}
+.cw-service-card {
+    background: #fff;
+    border: 1px solid var(--cw-border);
+    border-radius: var(--cw-radius);
+    padding: 28px 24px;
+    text-align: center;
+    box-shadow: var(--cw-shadow);
+    transition: transform 0.2s;
+}
+.cw-service-card:hover { transform: translateY(-4px); }
+.cw-service-duration {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--cw-primary);
+}
+.cw-service-price {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--cw-text);
+    margin: 8px 0;
+}
+.cw-service-desc { color: var(--cw-text-light); font-size: 0.9rem; }
+
+/* ── Booking section ───────────────────────────────────────────────── */
+.cw-booking-section {
+    background: #f0f7f5;
+    padding: 64px 5%;
+}
+.cw-booking-section .cw-section-title { margin-bottom: 32px; }
+
+/* ── Testimonials ──────────────────────────────────────────────────── */
+.cw-testimonials-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 24px;
+}
+.cw-testimonial {
+    background: #fff;
+    border-radius: var(--cw-radius);
+    padding: 24px;
+    box-shadow: var(--cw-shadow);
+    border-left: 4px solid var(--cw-accent);
+}
+.cw-testimonial-text {
+    font-style: italic;
+    color: var(--cw-text-light);
+    margin: 0 0 12px;
+}
+.cw-testimonial-author { font-weight: 600; font-size: 0.9rem; }
+
+/* ── Contact ───────────────────────────────────────────────────────── */
+.cw-contact-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+}
+@media (max-width: 600px) { .cw-contact-grid { grid-template-columns: 1fr; } }
+
+.cw-contact-item { margin-bottom: 16px; }
+.cw-contact-label { font-weight: 600; color: var(--cw-primary); display: block; margin-bottom: 4px; }
+
+/* ── Footer ────────────────────────────────────────────────────────── */
+.cw-footer {
+    background: #2d2d2d;
+    color: #ccc;
+    text-align: center;
+    padding: 32px 20px;
+    font-size: 0.9rem;
+}
+.cw-footer a { color: var(--cw-accent); text-decoration: none; }
