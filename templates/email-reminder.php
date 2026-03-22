@@ -32,7 +32,7 @@ $site_url  = get_bloginfo( 'url' );
   </div>
   <div class="body">
     <p>Hi <strong><?php echo esc_html( $booking->name ); ?></strong>,</p>
-    <p>This is a friendly reminder about your upcoming massage therapy appointment.</p>
+    <p>This is a friendly reminder about your upcoming appointment.</p>
 
     <div class="detail-box">
       <table>

@@ -62,8 +62,10 @@ class Caswell_Notifications {
 
         // SMS cancellation to client
         if ( ! empty( $booking->phone ) ) {
+            $biz_name = caswell_get_option( 'business_name', get_bloginfo( 'name' ) );
             $sms_msg = sprintf(
-                'Caswell Therapy: Your %d-min appointment on %s at %s has been cancelled.',
+                '%s: Your %d-min appointment on %s at %s has been cancelled.',
+                $biz_name,
                 $booking->session_length,
                 wp_date( 'M j', $start_ts ),
                 wp_date( 'g:i A', $start_ts )
@@ -246,16 +248,16 @@ class Caswell_Notifications {
 
     private function default_email_body( $type ) {
         if ( 'confirmation' === $type ) {
-            return "Hi {name},\n\nYour massage appointment has been confirmed!\n\nDate: {date}\nTime: {time} – {end_time} ({timezone})\nDuration: {duration}\n\nWe look forward to seeing you.\n\nCaswell Therapy";
+            return "Hi {name},\n\nYour appointment has been confirmed!\n\nDate: {date}\nTime: {time} – {end_time} ({timezone})\nDuration: {duration}\n\nWe look forward to seeing you.\n\n{site_name}";
         }
-        return "Hi {name},\n\nThis is a reminder of your upcoming massage appointment.\n\nDate: {date}\nTime: {time} – {end_time} ({timezone})\nDuration: {duration}\n\nSee you soon!\n\nCaswell Therapy";
+        return "Hi {name},\n\nThis is a reminder of your upcoming appointment.\n\nDate: {date}\nTime: {time} – {end_time} ({timezone})\nDuration: {duration}\n\nSee you soon!\n\n{site_name}";
     }
 
     private function default_sms_template( $type ) {
         if ( 'confirmation' === $type ) {
-            return 'Caswell Therapy: Your {duration} appointment on {date} at {time} is confirmed. Reply STOP to unsubscribe.';
+            return '{site_name}: Your {duration} appointment on {date} at {time} is confirmed. Reply STOP to unsubscribe.';
         }
-        return 'Caswell Therapy: Reminder — you have a {duration} appointment tomorrow, {date} at {time}. Reply STOP to unsubscribe.';
+        return '{site_name}: Reminder — you have a {duration} appointment tomorrow, {date} at {time}. Reply STOP to unsubscribe.';
     }
 
     private function format_phone( $phone ) {

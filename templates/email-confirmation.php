@@ -34,7 +34,7 @@ $site_url  = get_bloginfo( 'url' );
   </div>
   <div class="body">
     <p>Hi <strong><?php echo esc_html( $booking->name ); ?></strong>,</p>
-    <p>Your massage therapy appointment has been confirmed. We look forward to seeing you!</p>
+    <p>Your appointment has been confirmed. We look forward to seeing you!</p>
 
     <div class="detail-box">
       <table>

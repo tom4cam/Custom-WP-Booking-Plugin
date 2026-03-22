@@ -1,9 +1,9 @@
 <?php
 /**
  * Plugin Name: Caswell Booking
- * Plugin URI:  https://castherapylmt.com
- * Description: Appointment booking system for Ryan Caswell LMT — reads Google Calendar, handles booking, payments, and reminders.
- * Version:     1.2.0
+ * Plugin URI:  https://github.com/tcaswell/Custom-WP-Booking-Plugin
+ * Description: White-label appointment booking system — Google Calendar integration, Square/Venmo payments, SMS/email notifications, and client accounts.
+ * Version:     1.3.0
  * Author:      Caswell Therapy
  * License:     GPL-2.0+
  * Text Domain: caswell-booking
@@ -11,7 +11,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CASWELL_VERSION',    '1.2.0' );
+define( 'CASWELL_VERSION',    '1.3.0' );
 define( 'CASWELL_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CASWELL_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'CASWELL_PLUGIN_FILE', __FILE__ );
@@ -66,8 +66,9 @@ function caswell_create_pages() {
 
     // Standalone booking page — the shareable scheduling link
     if ( ! get_option( 'caswell_booking_page_id' ) ) {
+        $booking_title = caswell_get_option( 'booking_page_title', 'Book an Appointment' );
         $page_id = wp_insert_post( [
-            'post_title'   => 'Book a Massage',
+            'post_title'   => $booking_title,
             'post_name'    => 'book',
             'post_status'  => 'publish',
             'post_type'    => 'page',
@@ -191,6 +192,10 @@ function caswell_load_page_template( $template ) {
 function caswell_get_option( $key, $default = '' ) {
     $options = get_option( 'caswell_settings', [] );
     return isset( $options[ $key ] ) ? $options[ $key ] : $default;
+}
+
+function caswell_business_name() {
+    return caswell_get_option( 'business_name', get_bloginfo( 'name' ) );
 }
 
 function caswell_enabled_session_lengths() {

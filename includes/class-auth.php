@@ -22,10 +22,27 @@ class Caswell_Auth {
         ] );
     }
 
+    /* ── Rate limiting for auth endpoints ─────────────────────────────── */
+
+    private function check_auth_rate_limit( $action = 'auth' ) {
+        $ip  = sanitize_text_field( $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0' );
+        $key = 'caswell_' . $action . '_' . md5( $ip );
+        $count = (int) get_transient( $key );
+        if ( $count >= 10 ) {
+            return false;
+        }
+        set_transient( $key, $count + 1, 15 * MINUTE_IN_SECONDS );
+        return true;
+    }
+
     /* ── AJAX: Register ────────────────────────────────────────────────── */
 
     public function ajax_register() {
         check_ajax_referer( 'caswell_booking_nonce', 'nonce' );
+
+        if ( ! $this->check_auth_rate_limit( 'register' ) ) {
+            wp_send_json_error( 'Too many attempts. Please try again later.' );
+        }
 
         $name     = sanitize_text_field( $_POST['name'] ?? '' );
         $email    = sanitize_email( $_POST['email'] ?? '' );
@@ -67,6 +84,10 @@ class Caswell_Auth {
     public function ajax_login() {
         check_ajax_referer( 'caswell_booking_nonce', 'nonce' );
 
+        if ( ! $this->check_auth_rate_limit( 'login' ) ) {
+            wp_send_json_error( 'Too many login attempts. Please try again in 15 minutes.' );
+        }
+
         $email    = sanitize_email( $_POST['email'] ?? '' );
         $password = $_POST['password'] ?? '';
 
@@ -91,6 +112,10 @@ class Caswell_Auth {
 
     public function ajax_forgot_password() {
         check_ajax_referer( 'caswell_booking_nonce', 'nonce' );
+
+        if ( ! $this->check_auth_rate_limit( 'forgot' ) ) {
+            wp_send_json_error( 'Too many attempts. Please try again later.' );
+        }
 
         $email = sanitize_email( $_POST['email'] ?? '' );
         if ( ! $email || ! is_email( $email ) ) {

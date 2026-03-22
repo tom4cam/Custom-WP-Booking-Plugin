@@ -133,7 +133,7 @@
                 </div>
 
                 <div id="caswell-venmo-info" class="caswell-venmo-info" style="display:none;">
-                    <p>You'll be shown Ryan's Venmo details after booking to complete payment.</p>
+                    <p>You'll be shown Venmo details after booking to complete payment.</p>
                 </div>
             </div>
 

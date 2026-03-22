@@ -253,14 +253,22 @@ class Caswell_Booking_Handler {
         $booking = Caswell_Booking_DB::get_booking( $booking_id );
 
         // Post to both Google Calendars (non-fatal on failure)
-        $desc = "{$session_length}-min massage — {$name}" . ( $notes ? "\n\n{$notes}" : '' );
-        $event_id = $gcal->create_event( 'primary', "Ryan Massage — {$name}", $start, $end, $desc );
+        $practitioner = caswell_get_option( 'practitioner_name', 'Appointment' );
+        $service      = caswell_get_option( 'service_type', 'appointment' );
+        $event_title_tpl = caswell_get_option( 'gcal_event_title', '{practitioner} Appointment — {client}' );
+        $event_title = str_replace(
+            [ '{practitioner}', '{client}', '{duration}', '{service}' ],
+            [ $practitioner, $name, $session_length, $service ],
+            $event_title_tpl
+        );
+        $desc = "{$session_length}-min {$service} — {$name}" . ( $notes ? "\n\n{$notes}" : '' );
+        $event_id = $gcal->create_event( 'primary', $event_title, $start, $end, $desc );
         if ( ! $event_id ) {
             caswell_log( 'booking', "Google Calendar event creation failed for booking #{$booking_id}" );
         }
         $shared_cal_id = caswell_get_option( 'shared_calendar_id' );
         if ( $shared_cal_id ) {
-            $gcal->create_event( $shared_cal_id, "Ryan Massage — {$name}", $start, $end, $desc );
+            $gcal->create_event( $shared_cal_id, $event_title, $start, $end, $desc );
         }
 
         // Send notifications
@@ -451,7 +459,7 @@ class Caswell_Booking_Handler {
             ],
             'location_id' => $location_id,
             'buyer_email_address' => $email,
-            'note'        => "Massage session — {$session_length} min — {$name}",
+            'note'        => ucfirst( caswell_get_option( 'service_type', 'massage' ) ) . " session — {$session_length} min — {$name}",
         ];
 
         caswell_log( 'square', 'Initiating payment', [

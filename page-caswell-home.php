@@ -5,24 +5,27 @@
  */
 defined( 'ABSPATH' ) || exit;
 
-$o           = get_option( 'caswell_settings', [] );
-$phone       = $o['business_phone']   ?? '';
-$email_addr  = $o['business_email']   ?? '';
-$address     = $o['business_address'] ?? '';
-$hours       = $o['business_hours']   ?? '';
-$ryan_bio    = $o['ryan_bio']         ?? 'Ryan Caswell is a Licensed Massage Therapist dedicated to helping clients achieve relaxation, pain relief, and overall wellbeing through therapeutic massage.';
-$ryan_creds  = $o['ryan_credentials'] ?? 'LMT — Licensed Massage Therapist';
-$hero_tag    = $o['hero_tagline']     ?? 'Therapeutic Massage for Body &amp; Mind';
-$venmo_user  = $o['venmo_username']   ?? '';
-$site_name   = get_bloginfo( 'name' ) ?: 'Caswell Therapy';
-$booking_url = get_permalink( get_option( 'caswell_booking_page_id' ) ) ?: '/book';
+$o               = get_option( 'caswell_settings', [] );
+$phone           = $o['business_phone']   ?? '';
+$email_addr      = $o['business_email']   ?? '';
+$address         = $o['business_address'] ?? '';
+$hours           = $o['business_hours']   ?? '';
+$practitioner    = $o['practitioner_name']        ?? '';
+$practitioner_bio   = $o['practitioner_bio']      ?? $o['ryan_bio'] ?? '';
+$practitioner_creds = $o['practitioner_credentials'] ?? $o['ryan_credentials'] ?? '';
+$service_type    = $o['service_type']     ?? 'massage';
+$hero_tag        = $o['hero_tagline']     ?? 'Therapeutic ' . ucfirst( $service_type ) . ' for Body &amp; Mind';
+$hero_sub        = $o['hero_subtitle']    ?? 'Professional, therapeutic ' . $service_type . ' tailored to your needs — in a calm, welcoming space.';
+$venmo_user      = $o['venmo_username']   ?? '';
+$site_name       = $o['business_name']    ?? get_bloginfo( 'name' ) ?: 'My Business';
+$booking_url     = get_permalink( get_option( 'caswell_booking_page_id' ) ) ?: '/book';
 ?>
 <!DOCTYPE html>
 <html <?php language_attributes(); ?>>
 <head>
 <meta charset="<?php bloginfo( 'charset' ); ?>">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><?php echo esc_html( $site_name ); ?> — Licensed Massage Therapist</title>
+<title><?php echo esc_html( $site_name ); ?><?php echo $practitioner_creds ? ' — ' . esc_html( $practitioner_creds ) : ''; ?></title>
 <?php wp_head(); ?>
 <style>
 *, *::before, *::after { box-sizing: border-box; }
@@ -65,7 +68,7 @@ body { margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system,
         <?php echo esc_html( $hero_tag ); ?>
     </p>
     <p style="font-size:1.15rem;opacity:0.88;margin:0 0 40px;max-width:520px;margin-left:auto;margin-right:auto;">
-        Professional, therapeutic massage tailored to your needs — in a calm, welcoming space.
+        <?php echo esc_html( $hero_sub ); ?>
     </p>
     <a href="<?php echo esc_url( $booking_url ); ?>" style="
         display:inline-block;background:#fff;color:#4a7c6f;
@@ -138,7 +141,7 @@ body { margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system,
 
 <!-- ── About ──────────────────────────────────────────────────────── -->
 <section id="about" style="padding:72px 5%;max-width:900px;margin:0 auto;">
-    <h2 style="text-align:center;color:#4a7c6f;font-size:1.9rem;margin:0 0 48px;">About Ryan</h2>
+    <h2 style="text-align:center;color:#4a7c6f;font-size:1.9rem;margin:0 0 48px;">About <?php echo $practitioner ? esc_html( $practitioner ) : 'Us'; ?></h2>
     <div style="display:flex;gap:48px;align-items:center;flex-wrap:wrap;">
         <div style="flex-shrink:0;">
             <?php
@@ -158,15 +161,21 @@ body { margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system,
             <?php } ?>
         </div>
         <div style="flex:1;min-width:240px;">
-            <h3 style="color:#4a7c6f;margin:0 0 6px;font-size:1.5rem;">Ryan Caswell</h3>
+            <?php if ( $practitioner ) : ?>
+            <h3 style="color:#4a7c6f;margin:0 0 6px;font-size:1.5rem;"><?php echo esc_html( $practitioner ); ?></h3>
+            <?php endif; ?>
+            <?php if ( $practitioner_creds ) : ?>
             <span style="
                 background:#8fbc8f;color:#fff;padding:4px 14px;
                 border-radius:20px;font-size:0.82rem;font-weight:600;
                 display:inline-block;margin-bottom:16px;
-            "><?php echo esc_html( $ryan_creds ); ?></span>
+            "><?php echo esc_html( $practitioner_creds ); ?></span>
+            <?php endif; ?>
+            <?php if ( $practitioner_bio ) : ?>
             <p style="color:#444;line-height:1.75;margin:0;">
-                <?php echo nl2br( esc_html( $ryan_bio ) ); ?>
+                <?php echo nl2br( esc_html( $practitioner_bio ) ); ?>
             </p>
+            <?php endif; ?>
         </div>
     </div>
 </section>

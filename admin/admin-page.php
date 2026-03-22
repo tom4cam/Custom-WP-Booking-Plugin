@@ -32,7 +32,7 @@
                 <ol style="list-style:decimal;margin-left:20px;">
                     <li>Go to <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a> → APIs &amp; Services → Credentials → <em>Create Credentials → OAuth 2.0 Client ID</em> (type: Web application). Copy the Client ID and Client Secret.</li>
                     <li>Go to <a href="https://developers.google.com/oauthplayground" target="_blank">OAuth 2.0 Playground</a>. Click the gear icon → check <em>Use your own OAuth credentials</em> → enter your Client ID and Client Secret.</li>
-                    <li>In Step 1, enter the scope: <code>https://www.googleapis.com/auth/calendar</code>, click Authorize, and sign in as <strong>caswellrd@gmail.com</strong>.</li>
+                    <li>In Step 1, enter the scope: <code>https://www.googleapis.com/auth/calendar</code>, click Authorize, and sign in with the Google account that owns your calendars.</li>
                     <li>In Step 2, click <em>Exchange authorization code for tokens</em>. Copy the <strong>Refresh token</strong> and paste it below.</li>
                 </ol>
             </p>
@@ -66,14 +66,14 @@
                     <th><label for="shared_cal_id">Shared Calendar ID</label></th>
                     <td>
                         <input type="text" id="shared_cal_id" name="caswell_settings[shared_calendar_id]" value="<?php echo esc_attr( $o['shared_calendar_id'] ?? '' ); ?>" class="regular-text" />
-                        <p class="description">The calendar ID shared by pluckercraft@gmail.com. Find it in Google Calendar → hover over the calendar → three-dot menu → Settings → <em>Calendar ID</em>.</p>
+                        <p class="description">The shared calendar ID that contains your availability events. Find it in Google Calendar → hover over the calendar → three-dot menu → Settings → <em>Calendar ID</em>.</p>
                     </td>
                 </tr>
                 <tr>
                     <th><label for="personal_cal_id">Personal Calendar ID</label></th>
                     <td>
                         <input type="text" id="personal_cal_id" name="caswell_settings[personal_calendar_id]" value="<?php echo esc_attr( $o['personal_calendar_id'] ?? '' ); ?>" class="regular-text" placeholder="primary" />
-                        <p class="description">Ryan's own calendar — all events here block availability. Use <code>primary</code> for the main calendar, or the full calendar ID.</p>
+                        <p class="description">Your personal calendar — all events here block availability. Use <code>primary</code> for the main calendar, or the full calendar ID.</p>
                     </td>
                 </tr>
                 <tr>
@@ -130,7 +130,7 @@
             </table>
 
             <h3>Weekly Schedule</h3>
-            <p class="description">Define Ryan's regular working hours. When a day has a schedule, it is used as the availability window (instead of Glow calendar events). Leave a day disabled to fall back to Glow events for that day.</p>
+            <p class="description">Define your regular working hours. When a day has a schedule, it is used as the availability window (instead of calendar keyword events). Leave a day disabled to fall back to keyword-matched events for that day.</p>
             <table class="form-table">
                 <tr>
                     <th>Day</th>
@@ -318,13 +318,13 @@
                 </tr>
                 <tr><th colspan="2"><h3 style="margin:0">Owner Notifications</h3></th></tr>
                 <tr>
-                    <th>Notify Ryan on New Booking</th>
+                    <th>Notify Owner on New Booking</th>
                     <td>
-                        <label><input type="checkbox" name="caswell_settings[owner_notify_sms]" value="1" <?php checked( ! empty( $o['owner_notify_sms'] ) ); ?> /> Send SMS to Ryan when a new booking is made</label>
+                        <label><input type="checkbox" name="caswell_settings[owner_notify_sms]" value="1" <?php checked( ! empty( $o['owner_notify_sms'] ) ); ?> /> Send SMS to owner when a new booking is made</label>
                     </td>
                 </tr>
                 <tr>
-                    <th><label for="owner_notify_phone">Ryan's Phone Number</label></th>
+                    <th><label for="owner_notify_phone">Owner Phone Number</label></th>
                     <td>
                         <input type="text" id="owner_notify_phone" name="caswell_settings[owner_notify_phone]" value="<?php echo esc_attr( $o['owner_notify_phone'] ?? '' ); ?>" class="regular-text" placeholder="+15005550006" />
                         <p class="description">Phone number to receive new-booking SMS alerts (uses Twilio credentials above).</p>
@@ -358,18 +358,64 @@
         <!-- ── Business Info ──────────────────────────────────────────── -->
         <div id="tab-business" class="caswell-tab-content">
             <h2>Business / Homepage Info</h2>
+
+            <h3>Branding &amp; White-Label</h3>
+            <p class="description">These fields control how your business appears throughout the site, emails, SMS, and calendar events. Leave blank to use defaults.</p>
+            <table class="form-table">
+                <tr>
+                    <th><label for="business_name">Business Name</label></th>
+                    <td>
+                        <input type="text" id="business_name" name="caswell_settings[business_name]" value="<?php echo esc_attr( $o['business_name'] ?? '' ); ?>" class="regular-text" placeholder="<?php echo esc_attr( get_bloginfo( 'name' ) ); ?>" />
+                        <p class="description">Used in SMS, cancellation emails, and the homepage. Defaults to the WordPress site name.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="practitioner_name">Practitioner Name</label></th>
+                    <td>
+                        <input type="text" id="practitioner_name" name="caswell_settings[practitioner_name]" value="<?php echo esc_attr( $o['practitioner_name'] ?? '' ); ?>" class="regular-text" placeholder="Your Name" />
+                        <p class="description">Displayed on the homepage "About" section and used in calendar events.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="service_type">Service Type</label></th>
+                    <td>
+                        <input type="text" id="service_type" name="caswell_settings[service_type]" value="<?php echo esc_attr( $o['service_type'] ?? '' ); ?>" class="regular-text" placeholder="massage" />
+                        <p class="description">Used in calendar event descriptions, email templates, and the homepage. Examples: "massage", "therapy", "consultation".</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="gcal_event_title">Calendar Event Title</label></th>
+                    <td>
+                        <input type="text" id="gcal_event_title" name="caswell_settings[gcal_event_title]" value="<?php echo esc_attr( $o['gcal_event_title'] ?? '' ); ?>" class="regular-text" placeholder="{practitioner} Appointment — {client}" />
+                        <p class="description">Format for Google Calendar event titles. Use <code>{practitioner}</code>, <code>{client}</code>, <code>{duration}</code>, <code>{service}</code>.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="booking_page_title">Booking Page Title</label></th>
+                    <td>
+                        <input type="text" id="booking_page_title" name="caswell_settings[booking_page_title]" value="<?php echo esc_attr( $o['booking_page_title'] ?? '' ); ?>" class="regular-text" placeholder="Book an Appointment" />
+                        <p class="description">Title shown on the standalone booking page. Only applies on new installs or if the page title is reset manually.</p>
+                    </td>
+                </tr>
+            </table>
+
+            <h3>Homepage Content</h3>
             <table class="form-table">
                 <tr>
                     <th><label for="hero_tagline">Hero Tagline</label></th>
-                    <td><input type="text" id="hero_tagline" name="caswell_settings[hero_tagline]" value="<?php echo esc_attr( $o['hero_tagline'] ?? 'Therapeutic Massage for Body & Mind' ); ?>" class="large-text" /></td>
+                    <td><input type="text" id="hero_tagline" name="caswell_settings[hero_tagline]" value="<?php echo esc_attr( $o['hero_tagline'] ?? '' ); ?>" class="large-text" placeholder="Therapeutic Massage for Body &amp; Mind" /></td>
                 </tr>
                 <tr>
-                    <th><label for="ryan_bio">Ryan's Bio</label></th>
-                    <td><textarea id="ryan_bio" name="caswell_settings[ryan_bio]" rows="5" class="large-text"><?php echo esc_textarea( $o['ryan_bio'] ?? '' ); ?></textarea></td>
+                    <th><label for="hero_subtitle">Hero Subtitle</label></th>
+                    <td><input type="text" id="hero_subtitle" name="caswell_settings[hero_subtitle]" value="<?php echo esc_attr( $o['hero_subtitle'] ?? '' ); ?>" class="large-text" placeholder="Professional, therapeutic massage tailored to your needs." /></td>
                 </tr>
                 <tr>
-                    <th><label for="ryan_creds">Credentials / License</label></th>
-                    <td><input type="text" id="ryan_creds" name="caswell_settings[ryan_credentials]" value="<?php echo esc_attr( $o['ryan_credentials'] ?? '' ); ?>" class="regular-text" placeholder="LMT, Licensed Massage Therapist" /></td>
+                    <th><label for="practitioner_bio">Practitioner Bio</label></th>
+                    <td><textarea id="practitioner_bio" name="caswell_settings[practitioner_bio]" rows="5" class="large-text"><?php echo esc_textarea( $o['practitioner_bio'] ?? $o['ryan_bio'] ?? '' ); ?></textarea></td>
+                </tr>
+                <tr>
+                    <th><label for="practitioner_creds">Credentials / License</label></th>
+                    <td><input type="text" id="practitioner_creds" name="caswell_settings[practitioner_credentials]" value="<?php echo esc_attr( $o['practitioner_credentials'] ?? $o['ryan_credentials'] ?? '' ); ?>" class="regular-text" placeholder="e.g. LMT — Licensed Massage Therapist" /></td>
                 </tr>
                 <tr>
                     <th><label for="biz_phone">Business Phone</label></th>

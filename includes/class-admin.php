@@ -149,14 +149,30 @@ class Caswell_Admin {
             $clean[ "service_description_{$len}" ] = sanitize_textarea_field( $input[ "service_description_{$len}" ] ?? '' );
         }
 
+        // White-label / Branding
+        $clean['business_name']      = sanitize_text_field( $input['business_name'] ?? '' );
+        $clean['practitioner_name']  = sanitize_text_field( $input['practitioner_name'] ?? '' );
+        $clean['service_type']       = sanitize_text_field( $input['service_type'] ?? '' );
+        $clean['hero_subtitle']      = sanitize_text_field( $input['hero_subtitle'] ?? '' );
+        $clean['gcal_event_title']   = sanitize_text_field( $input['gcal_event_title'] ?? '' );
+        $clean['booking_page_title'] = sanitize_text_field( $input['booking_page_title'] ?? '' );
+
         // Business info
         $clean['business_phone']   = sanitize_text_field( $input['business_phone'] ?? '' );
         $clean['business_email']   = sanitize_email( $input['business_email'] ?? '' );
         $clean['business_address'] = sanitize_textarea_field( $input['business_address'] ?? '' );
         $clean['business_hours']   = sanitize_textarea_field( $input['business_hours'] ?? '' );
-        $clean['ryan_bio']         = sanitize_textarea_field( $input['ryan_bio'] ?? '' );
-        $clean['ryan_credentials'] = sanitize_text_field( $input['ryan_credentials'] ?? '' );
+        $clean['practitioner_bio']         = sanitize_textarea_field( $input['practitioner_bio'] ?? '' );
+        $clean['practitioner_credentials'] = sanitize_text_field( $input['practitioner_credentials'] ?? '' );
         $clean['hero_tagline']     = sanitize_text_field( $input['hero_tagline'] ?? '' );
+
+        // Migrate legacy field names if present in existing settings
+        if ( empty( $clean['practitioner_bio'] ) && ! empty( $existing['ryan_bio'] ) ) {
+            $clean['practitioner_bio'] = $existing['ryan_bio'];
+        }
+        if ( empty( $clean['practitioner_credentials'] ) && ! empty( $existing['ryan_credentials'] ) ) {
+            $clean['practitioner_credentials'] = $existing['ryan_credentials'];
+        }
 
         // Clear Google calendar transients on save
         delete_transient( 'caswell_google_token' );

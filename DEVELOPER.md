@@ -4,7 +4,7 @@
 
 WordPress plugin for **Ryan Caswell LMT** (castherapylmt.com). Handles appointment booking, Google Calendar integration, Square/Venmo payments, SMS/email notifications, and client accounts.
 
-**Version:** 1.2.0
+**Version:** 1.3.0
 
 ---
 
