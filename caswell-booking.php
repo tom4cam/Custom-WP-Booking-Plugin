@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Caswell Booking
- * Plugin URI:  https://github.com/tcaswell/Custom-WP-Booking-Plugin
+ * Plugin URI:  https://github.com/tom4cam/Custom-WP-Booking-Plugin
  * Description: White-label appointment booking system — Google Calendar integration, Square/Venmo payments, SMS/email notifications, and client accounts.
  * Version:     1.3.0
  * Author:      Caswell Therapy
