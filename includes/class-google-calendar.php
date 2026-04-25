@@ -155,7 +155,9 @@ class Caswell_Google_Calendar {
             }
         }
 
-        // 2. Weekly schedule window (primary source; Glow events are fallback)
+        // 2. Weekly schedule (admin override). When a day is explicitly enabled in
+        // Settings → Availability → Weekly Schedule, that schedule replaces all other
+        // window sources for that day — useful for restricting a day's hours.
         $weekly   = caswell_get_option( 'weekly_availability', [] );
         $day_num  = (int) $day_start->format( 'N' ); // 1=Mon … 7=Sun
         $schedule = $weekly[ $day_num ] ?? [];
@@ -169,7 +171,22 @@ class Caswell_Google_Calendar {
             }
         }
 
-        $windows = ! empty( $schedule_window ) ? $schedule_window : $glow_windows;
+        // 3. Default open window. Days are open by default during working hours;
+        // Glow events extend availability outside these hours, and personal-cal
+        // events / bookings still subtract from any window. Adjust the constants
+        // below to widen or narrow the default open period.
+        $default_open_start = '07:00';
+        $default_open_end   = '22:00';
+        $default_window = [
+            'start' => new DateTime( "{$date} {$default_open_start}:00", $tz ),
+            'end'   => new DateTime( "{$date} {$default_open_end}:00",   $tz ),
+        ];
+
+        if ( ! empty( $schedule_window ) ) {
+            $windows = $schedule_window;
+        } else {
+            $windows = $this->merge_windows( array_merge( [ $default_window ], $glow_windows ) );
+        }
         if ( empty( $windows ) ) return [];
 
         // 3. Blocks: personal calendar events
@@ -209,6 +226,32 @@ class Caswell_Google_Calendar {
 
         // 6. Subtract blocks from windows
         return $this->subtract_blocks( $windows, $blocks );
+    }
+
+    /**
+     * Merge overlapping or adjacent windows into a non-overlapping, sorted set.
+     */
+    private function merge_windows( $windows ) {
+        if ( count( $windows ) < 2 ) {
+            return $windows;
+        }
+        usort( $windows, function ( $a, $b ) {
+            return $a['start'] <=> $b['start'];
+        } );
+        $merged  = [];
+        $current = $windows[0];
+        for ( $i = 1, $n = count( $windows ); $i < $n; $i++ ) {
+            if ( $windows[ $i ]['start'] <= $current['end'] ) {
+                if ( $windows[ $i ]['end'] > $current['end'] ) {
+                    $current['end'] = $windows[ $i ]['end'];
+                }
+            } else {
+                $merged[] = $current;
+                $current  = $windows[ $i ];
+            }
+        }
+        $merged[] = $current;
+        return $merged;
     }
 
     /**

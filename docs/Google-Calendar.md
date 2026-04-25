@@ -14,7 +14,12 @@ Slot availability is calculated in four steps:
 
 ### 1. Fetch Available Windows
 
-Fetch events from the shared calendar that match a configured keyword (e.g., "Glow"), **or** fall back to the weekly schedule defined in [[Admin-Settings]].
+Days are **open by default** during working hours (currently hardcoded 07:00–22:00 in `class-google-calendar.php`). Two modifiers can change that:
+
+- **Glow events on the shared calendar** — events whose title contains the configured keyword (e.g., "Glow") are merged with the default window. Use them to extend availability outside the default hours (e.g., a 06:00–07:00 Glow event opens early).
+- **Weekly schedule (admin override)** — if a day is explicitly enabled in Settings → Availability → Weekly Schedule, that schedule **replaces** all other sources for that day. Use it to narrow a specific day's hours or to mark a day open only inside a tight window.
+
+Personal calendar events, existing bookings, and admin time blocks always subtract from whatever window is active (see step 2).
 
 ### 2. Fetch Blocks
 

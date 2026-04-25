@@ -4,9 +4,11 @@ The plugin reads Google Calendar to determine available appointment slots.
 
 ## How It Works
 
-1. **Available windows**: Events on a shared calendar matching a keyword (default: "Glow") define when appointments can be booked
-2. **Blocks**: Events on your personal calendar, existing bookings, and admin time blocks are subtracted
+1. **Available windows**: Days are open by default during working hours (07:00–22:00). Events on the shared calendar matching a keyword (default: "Glow") **extend** availability outside those hours.
+2. **Blocks**: Events on your personal calendar, existing bookings, and admin time blocks are subtracted from the open windows
 3. **Slots**: Free windows are sliced into bookable time slots based on session length + buffer time
+
+The default 07:00–22:00 window is set in `includes/class-google-calendar.php` (`$default_open_start` / `$default_open_end`). To enforce tighter hours for a specific day of the week, enable that day in **Settings → Availability → Weekly Schedule** — an enabled weekly-schedule day **replaces** the default and any Glow windows for that day.
 
 ## OAuth2 Setup (One-Time)
 
