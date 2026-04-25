@@ -171,21 +171,24 @@ class Caswell_Google_Calendar {
             }
         }
 
-        // 3. Default open window. Days are open by default during working hours;
-        // Glow events extend availability outside these hours, and personal-cal
-        // events / bookings still subtract from any window. Adjust the constants
-        // below to widen or narrow the default open period.
-        $default_open_start = '07:00';
-        $default_open_end   = '22:00';
-        $default_window = [
-            'start' => new DateTime( "{$date} {$default_open_start}:00", $tz ),
-            'end'   => new DateTime( "{$date} {$default_open_end}:00",   $tz ),
-        ];
+        // 3. Default open window. When the "Open by default" setting is on
+        // (Settings → Caswell Booking → Availability), days are open during the
+        // configured working hours; Glow events extend availability outside
+        // those hours. When off, only Glow events define when bookings are open.
+        $default_open      = (int) caswell_get_option( 'default_avail_open', 1 );
+        $default_open_start = (string) caswell_get_option( 'default_open_start', '07:00' );
+        $default_open_end   = (string) caswell_get_option( 'default_open_end',   '22:00' );
 
         if ( ! empty( $schedule_window ) ) {
             $windows = $schedule_window;
-        } else {
+        } elseif ( $default_open ) {
+            $default_window = [
+                'start' => new DateTime( "{$date} {$default_open_start}:00", $tz ),
+                'end'   => new DateTime( "{$date} {$default_open_end}:00",   $tz ),
+            ];
             $windows = $this->merge_windows( array_merge( [ $default_window ], $glow_windows ) );
+        } else {
+            $windows = $glow_windows;
         }
         if ( empty( $windows ) ) return [];
 
@@ -412,13 +415,42 @@ class Caswell_Google_Calendar {
         }
 
         $status = wp_remote_retrieve_response_code( $response );
-        if ( $status >= 200 && $status < 300 ) {
+        // 200/204 = deleted; 404/410 = already gone (treat as success)
+        if ( ( $status >= 200 && $status < 300 ) || 404 === $status || 410 === $status ) {
             caswell_log( 'gcal', "Event deleted: {$event_id} from {$calendar_id}" );
             return true;
         }
 
         caswell_log( 'gcal', "Delete event HTTP {$status}", [ 'event_id' => $event_id ] );
         return false;
+    }
+
+    /**
+     * Check whether an event still exists on a calendar.
+     *
+     * @return bool|null  true=exists, false=deleted/cancelled, null=API error or token issue
+     */
+    public function event_exists( $calendar_id, $event_id ) {
+        $token = $this->get_access_token();
+        if ( ! $token ) return null;
+
+        $url = 'https://www.googleapis.com/calendar/v3/calendars/'
+             . rawurlencode( $calendar_id ) . '/events/' . rawurlencode( $event_id );
+
+        $response = wp_remote_get( $url, [
+            'timeout' => 15,
+            'headers' => [ 'Authorization' => "Bearer {$token}" ],
+        ] );
+
+        if ( is_wp_error( $response ) ) return null;
+
+        $code = wp_remote_retrieve_response_code( $response );
+        if ( 404 === $code || 410 === $code ) return false;
+        if ( $code >= 200 && $code < 300 ) {
+            $body = json_decode( wp_remote_retrieve_body( $response ), true );
+            return ( $body['status'] ?? '' ) !== 'cancelled';
+        }
+        return null;
     }
 
     /**

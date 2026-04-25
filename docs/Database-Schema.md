@@ -20,6 +20,8 @@ Stores every individual appointment, including one-off bookings and individual o
 | `payment_method` | VARCHAR(20) | `square` or `venmo` |
 | `payment_status` | VARCHAR(20) | `paid` or `unpaid` |
 | `square_payment_id` | VARCHAR(100) | Square payment ID (used for refunds) |
+| `gcal_primary_event_id` | VARCHAR(255) | Google Calendar event ID on `primary` calendar (used to delete the event on cancel) |
+| `gcal_shared_event_id` | VARCHAR(255) | Google Calendar event ID on the shared calendar (also polled by the sync cron to detect manual deletions) |
 | `recurring_series_id` | BIGINT | FK to `wp_caswell_recurring_series` (nullable) |
 | `notes` | TEXT | Client notes |
 | `created_at` | DATETIME | Creation timestamp |

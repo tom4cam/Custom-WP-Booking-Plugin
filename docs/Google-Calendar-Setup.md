@@ -4,11 +4,15 @@ The plugin reads Google Calendar to determine available appointment slots.
 
 ## How It Works
 
-1. **Available windows**: Days are open by default during working hours (07:00–22:00). Events on the shared calendar matching a keyword (default: "Glow") **extend** availability outside those hours.
-2. **Blocks**: Events on your personal calendar, existing bookings, and admin time blocks are subtracted from the open windows
-3. **Slots**: Free windows are sliced into bookable time slots based on session length + buffer time
+1. **Available windows**: Days are open by default during configurable working hours (07:00–22:00). Events on the shared calendar matching a keyword (default: "Glow") **extend** availability outside those hours.
+2. **Blocks**: Events on your personal calendar, existing bookings, and admin time blocks are subtracted from the open windows.
+3. **Slots**: Free windows are sliced into bookable time slots based on session length + buffer time.
 
-The default 07:00–22:00 window is set in `includes/class-google-calendar.php` (`$default_open_start` / `$default_open_end`). To enforce tighter hours for a specific day of the week, enable that day in **Settings → Availability → Weekly Schedule** — an enabled weekly-schedule day **replaces** the default and any Glow windows for that day.
+Default working hours and the open-by-default toggle live in **Settings → Caswell Booking → Availability → Default Availability**. To enforce tighter hours for a specific day of the week, enable that day in **Weekly Schedule** — an enabled weekly-schedule day **replaces** the default and any Glow windows for that day.
+
+## Cancelling Bookings From Google Calendar
+
+If you delete a booking event from the **shared** calendar (e.g., directly in Google Calendar), the hourly sync cron will detect the deletion within the next hour, mark the booking cancelled, remove the matching event from your primary calendar, and send cancellation notifications to both you and the client. The cancel link in the confirmation email and the WP admin Bookings page do the same thing immediately.
 
 ## OAuth2 Setup (One-Time)
 

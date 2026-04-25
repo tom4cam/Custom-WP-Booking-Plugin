@@ -262,14 +262,23 @@ class Caswell_Booking_Handler {
             $event_title_tpl
         );
         $desc = "{$session_length}-min {$service} — {$name}" . ( $notes ? "\n\n{$notes}" : '' );
-        $event_id = $gcal->create_event( 'primary', $event_title, $start, $end, $desc );
-        if ( ! $event_id ) {
-            caswell_log( 'booking', "Google Calendar event creation failed for booking #{$booking_id}" );
+        $primary_event_id = $gcal->create_event( 'primary', $event_title, $start, $end, $desc );
+        if ( ! $primary_event_id ) {
+            caswell_log( 'booking', "Google Calendar primary event creation failed for booking #{$booking_id}" );
         }
-        $shared_cal_id = caswell_get_option( 'shared_calendar_id' );
+        $shared_cal_id   = caswell_get_option( 'shared_calendar_id' );
+        $shared_event_id = '';
         if ( $shared_cal_id ) {
-            $gcal->create_event( $shared_cal_id, $event_title, $start, $end, $desc );
+            $shared_event_id = $gcal->create_event( $shared_cal_id, $event_title, $start, $end, $desc );
+            if ( ! $shared_event_id ) {
+                caswell_log( 'booking', "Google Calendar shared event creation failed for booking #{$booking_id}" );
+            }
         }
+        Caswell_Booking_DB::update_booking_event_ids(
+            $booking_id,
+            (string) $primary_event_id,
+            (string) $shared_event_id
+        );
 
         // Send notifications
         $notifier = new Caswell_Notifications();
@@ -327,6 +336,9 @@ class Caswell_Booking_Handler {
 
         Caswell_Booking_DB::update_booking_status( $booking_id, 'cancelled' );
 
+        // Remove the matching events from both calendars (best effort)
+        $this->delete_booking_calendar_events( $booking );
+
         // Send cancellation notifications
         $notifier = new Caswell_Notifications();
         $notifier->send_cancellation( $booking );
@@ -334,6 +346,22 @@ class Caswell_Booking_Handler {
         caswell_log( 'booking', "Booking #{$booking_id} cancelled by user #" . get_current_user_id() );
 
         wp_send_json_success( 'Booking cancelled.' );
+    }
+
+    /**
+     * Delete the Google Calendar copies tied to a booking. Best-effort —
+     * failures are logged but do not block the cancellation flow.
+     */
+    private function delete_booking_calendar_events( $booking ) {
+        if ( ! $booking ) return;
+        $gcal = new Caswell_Google_Calendar();
+        if ( ! empty( $booking->gcal_primary_event_id ) ) {
+            $gcal->delete_event( 'primary', $booking->gcal_primary_event_id );
+        }
+        $shared_cal_id = caswell_get_option( 'shared_calendar_id' );
+        if ( $shared_cal_id && ! empty( $booking->gcal_shared_event_id ) ) {
+            $gcal->delete_event( $shared_cal_id, $booking->gcal_shared_event_id );
+        }
     }
 
     /* ── AJAX: Cancel recurring series ────────────────────────────────── */
@@ -357,6 +385,11 @@ class Caswell_Booking_Handler {
 
         Caswell_Booking_DB::cancel_future_series_bookings( $series_id );
         Caswell_Booking_DB::update_series_status( $series_id, 'cancelled' );
+
+        // Delete each future booking's calendar events (best effort)
+        foreach ( $future_bookings as $fb ) {
+            $this->delete_booking_calendar_events( $fb );
+        }
 
         // Send cancellation notification for the first future booking as representative
         if ( ! empty( $future_bookings ) ) {

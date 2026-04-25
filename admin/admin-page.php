@@ -129,8 +129,35 @@
                 </tr>
             </table>
 
+            <h3>Default Availability</h3>
+            <table class="form-table">
+                <tr>
+                    <th>Open by default</th>
+                    <td>
+                        <?php $default_avail_on = ! isset( $o['default_avail_open'] ) || ! empty( $o['default_avail_open'] ); ?>
+                        <label>
+                            <input type="checkbox" name="caswell_settings[default_avail_open]" value="1" <?php checked( $default_avail_on ); ?> />
+                            Allow bookings any time within working hours, even when no Glow event is set
+                        </label>
+                        <p class="description">When on (default), days are open during the working hours below; Glow events on the shared calendar extend availability outside those hours. When off, only Glow events define when bookings are open.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="default_open_start">Working Hours Start</label></th>
+                    <td>
+                        <input type="time" id="default_open_start" name="caswell_settings[default_open_start]" value="<?php echo esc_attr( $o['default_open_start'] ?? '07:00' ); ?>" />
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="default_open_end">Working Hours End</label></th>
+                    <td>
+                        <input type="time" id="default_open_end" name="caswell_settings[default_open_end]" value="<?php echo esc_attr( $o['default_open_end'] ?? '22:00' ); ?>" />
+                    </td>
+                </tr>
+            </table>
+
             <h3>Weekly Schedule</h3>
-            <p class="description">Define your regular working hours. When a day has a schedule, it is used as the availability window (instead of calendar keyword events). Leave a day disabled to fall back to keyword-matched events for that day.</p>
+            <p class="description"><strong>Advanced:</strong> use only if you want to restrict a specific day's hours. When a day is enabled here, it overrides both the default open hours above and any Glow events on that day. Leave all days disabled if you want the default-availability rules to apply.</p>
             <table class="form-table">
                 <tr>
                     <th>Day</th>

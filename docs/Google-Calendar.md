@@ -14,12 +14,21 @@ Slot availability is calculated in four steps:
 
 ### 1. Fetch Available Windows
 
-Days are **open by default** during working hours (currently hardcoded 07:00–22:00 in `class-google-calendar.php`). Two modifiers can change that:
+A day's open windows are determined by, in order of precedence:
 
-- **Glow events on the shared calendar** — events whose title contains the configured keyword (e.g., "Glow") are merged with the default window. Use them to extend availability outside the default hours (e.g., a 06:00–07:00 Glow event opens early).
-- **Weekly schedule (admin override)** — if a day is explicitly enabled in Settings → Availability → Weekly Schedule, that schedule **replaces** all other sources for that day. Use it to narrow a specific day's hours or to mark a day open only inside a tight window.
+- **Weekly schedule (admin override)** — if a day is explicitly enabled in Settings → Availability → Weekly Schedule, that schedule **replaces** all other sources for that day.
+- **Default availability + Glow events** — when "Open by default" is on (Settings → Availability → Default Availability; on by default), days are open during the configured working hours (default 07:00–22:00) and any "Glow" events on the shared calendar are merged in (so they can extend availability outside working hours).
+- **Glow events only** — when "Open by default" is off, only events whose title contains the keyword (e.g., "Glow") on the shared calendar define open windows.
 
 Personal calendar events, existing bookings, and admin time blocks always subtract from whatever window is active (see step 2).
+
+## Booking → Calendar Sync
+
+When a booking is confirmed, an event is created on **two** calendars: the OAuth user's `primary` calendar and the configured shared calendar. Both event IDs are stored in `wp_caswell_bookings` (`gcal_primary_event_id`, `gcal_shared_event_id`).
+
+When a booking is cancelled (via the cancel link, the WP admin Bookings page, or the public account page), the plugin deletes the matching events from both calendars.
+
+An hourly cron (`caswell_sync_shared_calendar`) detects shared-calendar events that were deleted manually outside the plugin (e.g., from Ryan's Google Calendar UI). For each missing event, the plugin marks the booking cancelled, deletes the primary-calendar copy, and triggers the standard cancellation notifications to the client and the owner.
 
 ### 2. Fetch Blocks
 

@@ -3,7 +3,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Caswell_Booking_DB {
 
-    const BOOKINGS_VERSION = 3;
+    const BOOKINGS_VERSION = 4;
 
     public static function create_tables() {
         global $wpdb;
@@ -22,6 +22,8 @@ class Caswell_Booking_DB {
             payment_method     VARCHAR(20)     NOT NULL DEFAULT 'square',
             payment_status     VARCHAR(20)     NOT NULL DEFAULT 'unpaid',
             square_payment_id  VARCHAR(100)    NOT NULL DEFAULT '',
+            gcal_primary_event_id VARCHAR(255) NOT NULL DEFAULT '',
+            gcal_shared_event_id  VARCHAR(255) NOT NULL DEFAULT '',
             recurring_series_id BIGINT UNSIGNED DEFAULT NULL,
             notes              TEXT,
             created_at         DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -29,7 +31,8 @@ class Caswell_Booking_DB {
             KEY client_id (client_id),
             KEY start_datetime (start_datetime),
             KEY status (status),
-            KEY recurring_series_id (recurring_series_id)
+            KEY recurring_series_id (recurring_series_id),
+            KEY gcal_shared_event_id (gcal_shared_event_id)
         ) $charset;";
 
         $series = "CREATE TABLE {$wpdb->prefix}caswell_recurring_series (
@@ -136,6 +139,38 @@ class Caswell_Booking_DB {
             [ 'id' => absint( $id ) ],
             [ '%s' ],
             [ '%d' ]
+        );
+    }
+
+    /**
+     * Persist Google Calendar event IDs after a booking is created.
+     */
+    public static function update_booking_event_ids( $id, $primary_event_id, $shared_event_id ) {
+        global $wpdb;
+        return $wpdb->update(
+            "{$wpdb->prefix}caswell_bookings",
+            [
+                'gcal_primary_event_id' => (string) $primary_event_id,
+                'gcal_shared_event_id'  => (string) $shared_event_id,
+            ],
+            [ 'id' => absint( $id ) ],
+            [ '%s', '%s' ],
+            [ '%d' ]
+        );
+    }
+
+    /**
+     * Upcoming, still-confirmed bookings that have a shared-calendar event ID.
+     * Used by the cron sweep that detects manual deletions from the shared calendar.
+     */
+    public static function get_upcoming_bookings_with_shared_event() {
+        global $wpdb;
+        return $wpdb->get_results(
+            "SELECT * FROM {$wpdb->prefix}caswell_bookings
+              WHERE status = 'confirmed'
+                AND gcal_shared_event_id <> ''
+                AND start_datetime >= NOW()
+              ORDER BY start_datetime ASC"
         );
     }
 

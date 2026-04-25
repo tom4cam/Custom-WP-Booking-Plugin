@@ -120,6 +120,19 @@ class Caswell_Admin {
         }
         $clean['weekly_availability'] = $weekly;
 
+        // Default availability (open by default)
+        $clean['default_avail_open']  = ! empty( $input['default_avail_open'] ) ? 1 : 0;
+        $clean['default_open_start']  = $this->sanitize_time( $input['default_open_start'] ?? '' ) ?: '07:00';
+        $clean['default_open_end']    = $this->sanitize_time( $input['default_open_end'] ?? '' )   ?: '22:00';
+        if ( strcmp( $clean['default_open_end'], $clean['default_open_start'] ) <= 0 ) {
+            add_settings_error( 'caswell_settings', 'bad_default_hours',
+                'Default open hours: end time must be after start time. Reverted to 07:00–22:00.',
+                'error'
+            );
+            $clean['default_open_start'] = '07:00';
+            $clean['default_open_end']   = '22:00';
+        }
+
         // Owner SMS notifications
         $clean['owner_notify_sms']   = ! empty( $input['owner_notify_sms'] ) ? 1 : 0;
         $clean['owner_notify_phone'] = sanitize_text_field( $input['owner_notify_phone'] ?? '' );
