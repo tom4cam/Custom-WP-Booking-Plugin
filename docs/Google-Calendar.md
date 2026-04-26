@@ -22,6 +22,8 @@ A day's open windows are determined by, in order of precedence:
 
 Personal calendar events, existing bookings, and admin time blocks always subtract from whatever window is active (see step 2).
 
+**Personal calendar transparency:** events on the personal calendar marked **Free** (Google Calendar's "Show me as: Free", `transparency=transparent` in the API) are skipped — they do **not** block bookings. Use this to put informational items on your calendar (reminders, all-day flags, travel dates kept "Free") without taking yourself off the booking grid.
+
 ## Booking → Calendar Sync
 
 When a booking is confirmed, an event is created on **two** calendars: the OAuth user's `primary` calendar and the configured shared calendar. Both event IDs are stored in `wp_caswell_bookings` (`gcal_primary_event_id`, `gcal_shared_event_id`).

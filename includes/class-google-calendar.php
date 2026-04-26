@@ -197,6 +197,12 @@ class Caswell_Google_Calendar {
         if ( $personal_cal_id ) {
             $personal_events = $this->fetch_events( $personal_cal_id, $time_min, $time_max );
             foreach ( $personal_events as $event ) {
+                // Respect Google Calendar's "Show me as" setting — skip events
+                // marked Free (transparency=transparent). Default for events
+                // without the field is "opaque" (busy), which still blocks.
+                if ( ( $event['transparency'] ?? 'opaque' ) === 'transparent' ) {
+                    continue;
+                }
                 $start = $this->parse_event_datetime( $event, 'start', $tz );
                 $end   = $this->parse_event_datetime( $event, 'end',   $tz );
                 if ( $start && $end ) {
