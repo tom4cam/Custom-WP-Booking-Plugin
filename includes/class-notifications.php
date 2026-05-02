@@ -3,6 +3,49 @@ defined( 'ABSPATH' ) || exit;
 
 class Caswell_Notifications {
 
+    /* ── Header builder (consistent across every wp_mail call) ─────────── */
+
+    /**
+     * Build the standard set of headers we attach to every outbound message.
+     * Includes deliverability-friendly basics that wp_mail won't add for you:
+     *   - From / Reply-To pair (matched, on the same domain ideally)
+     *   - Message-ID with a host that matches the From domain
+     *   - Date (some hosts strip / mis-format wp_mail's auto-Date)
+     *   - List-Unsubscribe (RFC 2369) — Gmail and Outlook give better
+     *     placement to messages that expose a clean unsubscribe path
+     *
+     * @param string $content_type 'text/html' or 'text/plain'
+     */
+    private function build_headers( $content_type = 'text/html' ) {
+        $from_name  = caswell_get_option( 'email_from_name', get_bloginfo( 'name' ) );
+        $from_email = caswell_get_option( 'email_from_address', get_bloginfo( 'admin_email' ) );
+
+        $domain = '';
+        if ( $from_email && strpos( $from_email, '@' ) !== false ) {
+            $domain = strtolower( substr( $from_email, strpos( $from_email, '@' ) + 1 ) );
+        }
+        if ( ! $domain ) {
+            $host = wp_parse_url( site_url(), PHP_URL_HOST );
+            $domain = $host ? preg_replace( '/^www\./', '', $host ) : 'localhost';
+        }
+
+        // Stable, unique Message-ID. Random component bound to wp_generate_uuid4.
+        $msg_id = '<' . wp_generate_uuid4() . '@' . $domain . '>';
+
+        $headers = [
+            "From: {$from_name} <{$from_email}>",
+            "Reply-To: {$from_name} <{$from_email}>",
+            "Content-Type: {$content_type}; charset=UTF-8",
+            "Message-ID: {$msg_id}",
+            'Date: ' . gmdate( 'r' ),
+            // Mailto-only List-Unsubscribe — Gmail/Outlook will surface a
+            // one-click "Unsubscribe" button that reaches the practitioner.
+            "List-Unsubscribe: <mailto:{$from_email}?subject=Unsubscribe>",
+        ];
+
+        return $headers;
+    }
+
     /* ── Email ─────────────────────────────────────────────────────────── */
 
     /**
@@ -35,9 +78,6 @@ class Caswell_Notifications {
      * @param string $admin_message   Optional personal note from the practitioner
      */
     public function send_reschedule( $booking, $previous_start, $admin_message = '' ) {
-        $from_name  = caswell_get_option( 'email_from_name', get_bloginfo( 'name' ) );
-        $from_email = caswell_get_option( 'email_from_address', get_bloginfo( 'admin_email' ) );
-
         $old_ts   = strtotime( $previous_start );
         $new_ts   = strtotime( $booking->start_datetime );
         $end_ts   = strtotime( $booking->end_datetime );
@@ -56,10 +96,7 @@ class Caswell_Notifications {
         include CASWELL_PLUGIN_DIR . 'templates/email-rescheduled.php';
         $html = ob_get_clean();
 
-        $headers = [
-            "From: {$from_name} <{$from_email}>",
-            'Content-Type: text/html; charset=UTF-8',
-        ];
+        $headers = $this->build_headers( 'text/html' );
 
         $sent = wp_mail( $booking->email, $subject, $html, $headers );
         if ( ! $sent ) {
@@ -98,9 +135,6 @@ class Caswell_Notifications {
      * Send a cancellation notification to the client and owner.
      */
     public function send_cancellation( $booking ) {
-        $from_name  = caswell_get_option( 'email_from_name', get_bloginfo( 'name' ) );
-        $from_email = caswell_get_option( 'email_from_address', get_bloginfo( 'admin_email' ) );
-
         $start_ts = strtotime( $booking->start_datetime );
         $subject  = 'Appointment Cancelled — ' . wp_date( 'M j, Y', $start_ts );
         $body     = sprintf(
@@ -112,10 +146,7 @@ class Caswell_Notifications {
             get_bloginfo( 'name' )
         );
 
-        $headers = [
-            "From: {$from_name} <{$from_email}>",
-            'Content-Type: text/plain; charset=UTF-8',
-        ];
+        $headers = $this->build_headers( 'text/plain' );
 
         $sent = wp_mail( $booking->email, $subject, $body, $headers );
         if ( ! $sent ) {
@@ -168,9 +199,6 @@ class Caswell_Notifications {
      * true = handed off to mailer, false = wp_mail rejected it.
      */
     private function send_email( $booking, $type ) {
-        $from_name  = caswell_get_option( 'email_from_name', get_bloginfo( 'name' ) );
-        $from_email = caswell_get_option( 'email_from_address', get_bloginfo( 'admin_email' ) );
-
         $subject_key = "email_{$type}_subject";
         $body_key    = "email_{$type}_body";
 
@@ -185,16 +213,18 @@ class Caswell_Notifications {
         include CASWELL_PLUGIN_DIR . "templates/email-{$type}.php";
         $html = ob_get_clean();
 
-        $headers = [
-            "From: {$from_name} <{$from_email}>",
-            'Content-Type: text/html; charset=UTF-8',
-        ];
+        $headers = $this->build_headers( 'text/html' );
+
+        // For deliverability bookkeeping — caswell_log records what we
+        // sent with which From, so misconfigured From-addresses surface in
+        // the debug log and the Email Delivery Test result.
+        $from_email_for_log = caswell_get_option( 'email_from_address', get_bloginfo( 'admin_email' ) );
 
         $sent = wp_mail( $booking->email, $subject, $html, $headers );
         caswell_log( 'email', $sent ? "Sent {$type} email" : "FAILED to send {$type} email", [
             'booking_id' => $booking->id,
             'email'      => $booking->email,
-            'from'       => "{$from_name} <{$from_email}>",
+            'from'       => $from_email_for_log,
         ] );
 
         // Also notify admin (failure here is logged but doesn't change the return value).

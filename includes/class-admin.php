@@ -691,29 +691,59 @@ class Caswell_Admin {
         $from_name  = caswell_get_option( 'email_from_name',    get_bloginfo( 'name' ) );
         $from_email = caswell_get_option( 'email_from_address', get_bloginfo( 'admin_email' ) );
 
+        // Domain-mismatch warning. When the From-address domain differs from
+        // the site domain (e.g. From: foo@gmail.com on castherapylmt.com),
+        // SPF/DKIM alignment is impossible and Gmail/Outlook will spam-fold
+        // or reject the message.
+        $site_host    = wp_parse_url( site_url(), PHP_URL_HOST );
+        $site_domain  = $site_host ? preg_replace( '/^www\./', '', strtolower( $site_host ) ) : '';
+        $from_domain  = '';
+        if ( $from_email && strpos( $from_email, '@' ) !== false ) {
+            $from_domain = strtolower( substr( $from_email, strpos( $from_email, '@' ) + 1 ) );
+        }
+        $domain_mismatch = ( $site_domain && $from_domain && $site_domain !== $from_domain );
+        $generic_from    = in_array( $from_domain, [ 'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'aol.com' ], true );
+
         $subject = '[' . get_bloginfo( 'name' ) . '] Email delivery test';
         $body    = "<p>If you're seeing this, your site can send mail through wp_mail.</p>"
-                 . "<p>From header used: <code>{$from_name} &lt;{$from_email}&gt;</code></p>"
-                 . "<p>Site: <code>" . esc_html( site_url() ) . "</code></p>";
+                 . "<p>From header used: <code>" . esc_html( $from_name . ' <' . $from_email . '>' ) . "</code></p>"
+                 . "<p>Site: <code>" . esc_html( site_url() ) . "</code></p>"
+                 . "<p>Sent at: " . esc_html( gmdate( 'r' ) ) . "</p>";
 
-        $headers = [
-            "From: {$from_name} <{$from_email}>",
-            'Content-Type: text/html; charset=UTF-8',
-        ];
+        // Reuse the same header set the real notifications use, so the test
+        // exercises the production-equivalent path.
+        $notifier = new Caswell_Notifications();
+        $reflect  = new ReflectionMethod( $notifier, 'build_headers' );
+        $reflect->setAccessible( true );
+        $headers  = $reflect->invoke( $notifier, 'text/html' );
 
         $sent = wp_mail( $to, $subject, $body, $headers );
         caswell_log( 'email', $sent ? 'Test email sent OK' : 'Test email FAILED', [
-            'to'   => $to,
-            'from' => "{$from_name} <{$from_email}>",
+            'to'              => $to,
+            'from'            => "{$from_name} <{$from_email}>",
+            'domain_mismatch' => $domain_mismatch,
         ] );
 
+        $advisories = [];
+        if ( $generic_from ) {
+            $advisories[] = "Your <strong>From</strong> address is on a free provider (<code>{$from_domain}</code>). Gmail and Outlook strictly enforce DMARC for these domains — your messages will be rejected or spam-foldered. Use an address on your own domain (e.g. <code>bookings@{$site_domain}</code>).";
+        } elseif ( $domain_mismatch ) {
+            $advisories[] = "Your <strong>From</strong> address is on <code>{$from_domain}</code> but your site is <code>{$site_domain}</code>. SPF/DKIM alignment isn't possible across domains — Gmail/Outlook will treat these as spoofed. Either move the From-address to <code>{$site_domain}</code>, or send from a provider (SendGrid/Mailgun/Postmark) authorized for <code>{$from_domain}</code>.";
+        }
+
         if ( $sent ) {
+            $msg = "wp_mail accepted the message. Check {$to} (and the spam folder). If it doesn't arrive, your host is likely silently dropping outbound mail — install an SMTP plugin (e.g. WP Mail SMTP) and configure SendGrid / Mailgun / Gmail SMTP.";
+            if ( $advisories ) $msg .= '<br><br><strong>Heads up:</strong> ' . implode( ' ', $advisories );
             wp_send_json_success( [
-                'message' => "wp_mail accepted the message. Check {$to} (and the spam folder). If it doesn't arrive, your host is likely silently dropping outbound mail — install an SMTP plugin (e.g. WP Mail SMTP) and configure SendGrid / Mailgun / Gmail SMTP.",
+                'message'    => $msg,
+                'advisories' => $advisories,
             ] );
         }
+        $msg = "wp_mail returned false — the message was not handed off. Check the From address (<code>{$from_email}</code>) is on a domain you own and that your host allows outbound mail. The debug log has more detail.";
+        if ( $advisories ) $msg .= '<br><br>' . implode( ' ', $advisories );
         wp_send_json_error( [
-            'message' => "wp_mail returned false — the message was not handed off. Check the From address (<code>{$from_email}</code>) is on a domain you own and that your host allows outbound mail. The debug log has more detail.",
+            'message'    => $msg,
+            'advisories' => $advisories,
         ] );
     }
 }

@@ -62,6 +62,14 @@ $site_url  = get_bloginfo( 'url' );
   <div class="footer">
     <p>&copy; <?php echo date( 'Y' ); ?> <?php echo esc_html( $site_name ); ?>. All rights reserved.</p>
     <p><a href="<?php echo esc_url( $site_url ); ?>"><?php echo esc_html( $site_url ); ?></a></p>
+    <?php
+    $reply_to = caswell_get_option( 'email_from_address', get_bloginfo( 'admin_email' ) );
+    if ( $reply_to ) :
+    ?>
+    <p style="margin-top:8px;font-size:11px;color:#999">
+        Don't want reminder emails? <a href="mailto:<?php echo esc_attr( $reply_to ); ?>?subject=Stop%20appointment%20reminders" style="color:#999">Reply with "stop reminders"</a>.
+    </p>
+    <?php endif; ?>
   </div>
 </div>
 </body>
