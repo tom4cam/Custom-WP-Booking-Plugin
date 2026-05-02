@@ -303,7 +303,7 @@ class Caswell_Booking_Handler {
 
         $shared_event_id = '';
         if ( $shared_cal_id ) {
-            $shared_title_tpl = caswell_get_option( 'gcal_shared_event_title', '{practitioner}: {client_first}' );
+            $shared_title_tpl = caswell_get_option( 'gcal_shared_event_title', '{practitioner}: {client_short} ({duration} min)' );
             $shared_title     = caswell_render_event_title( $shared_title_tpl, $name, $session_length, $service );
             $shared_event_id  = $gcal->create_event( $shared_cal_id, $shared_title, $start, $end, $desc );
             if ( ! $shared_event_id ) {

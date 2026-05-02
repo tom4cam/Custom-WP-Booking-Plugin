@@ -420,8 +420,8 @@
                 <tr>
                     <th><label for="gcal_shared_event_title">Shared Calendar — Event Title</label></th>
                     <td>
-                        <input type="text" id="gcal_shared_event_title" name="caswell_settings[gcal_shared_event_title]" value="<?php echo esc_attr( $o['gcal_shared_event_title'] ?? '' ); ?>" class="regular-text" placeholder="{practitioner}: {client_first}" />
-                        <p class="description">Format for events written to the <strong>shared</strong> calendar. Defaults to <code>{practitioner}: {client_first}</code> (e.g. "Ryan: Jane"). Placeholders: <code>{practitioner}</code>, <code>{client}</code>, <code>{client_first}</code>, <code>{duration}</code>, <code>{service}</code>.</p>
+                        <input type="text" id="gcal_shared_event_title" name="caswell_settings[gcal_shared_event_title]" value="<?php echo esc_attr( $o['gcal_shared_event_title'] ?? '' ); ?>" class="regular-text" placeholder="{practitioner}: {client_short} ({duration} min)" />
+                        <p class="description">Format for events written to the <strong>shared</strong> calendar. Defaults to <code>{practitioner}: {client_short} ({duration} min)</code> (e.g. "Ryan: Jane S. (60 min)"). Placeholders: <code>{practitioner}</code>, <code>{client}</code>, <code>{client_first}</code>, <code>{client_short}</code> (first + last initial), <code>{duration}</code>, <code>{service}</code>.</p>
                     </td>
                 </tr>
                 <tr>

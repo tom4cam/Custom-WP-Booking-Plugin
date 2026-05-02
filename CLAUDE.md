@@ -97,9 +97,12 @@ Consequences:
   `enable_primary_calendar_event` is on. Default off — Settings → Google
   Calendar → "Also create event on personal calendar".
 - **Shared vs. personal event titles** are independently configurable.
-  `gcal_shared_event_title` defaults to `{practitioner}: {client_first}`;
-  `gcal_event_title` (personal) defaults to `{practitioner} Appointment — {client}`.
-  Both support `{practitioner}`, `{client}`, `{client_first}`, `{duration}`, `{service}`.
+  `gcal_shared_event_title` defaults to
+  `{practitioner}: {client_short} ({duration} min)`
+  (e.g. "Ryan: Jane S. (60 min)"); `gcal_event_title` (personal) defaults
+  to `{practitioner} Appointment — {client}`. Both support `{practitioner}`,
+  `{client}`, `{client_first}`, `{client_short}` (first name + last initial),
+  `{duration}`, `{service}`.
 - **Calendar keywords**: on the shared Google Calendar, events titled "Glow"
   define available windows; events titled "Terry" (or whatever the blocking
   keyword is set to) act as busy blocks like personal-calendar events.

@@ -3,7 +3,7 @@
  * Plugin Name: Caswell Booking
  * Plugin URI:  https://github.com/tom4cam/Custom-WP-Booking-Plugin
  * Description: White-label appointment booking system — Google Calendar integration, Square/Venmo payments, SMS/email notifications, and client accounts.
- * Version:     1.4.3
+ * Version:     1.4.4
  * Author:      Caswell Therapy
  * License:     GPL-2.0+
  * Text Domain: caswell-booking
@@ -11,7 +11,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CASWELL_VERSION',    '1.4.3' );
+define( 'CASWELL_VERSION',    '1.4.4' );
 define( 'CASWELL_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CASWELL_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'CASWELL_PLUGIN_FILE', __FILE__ );
@@ -313,19 +313,30 @@ function caswell_booking_cancel_url( $booking ) {
  *   {practitioner}   — the practitioner_name setting
  *   {client}         — full client name as entered on the form
  *   {client_first}   — first whitespace-delimited token of the client name
+ *   {client_short}   — first name + last initial (e.g. "Jane S.").
+ *                      Falls back to first name only when the client gave a
+ *                      single-word name.
  *   {duration}       — session length in minutes
  *   {service}        — service_type setting
  */
 function caswell_render_event_title( $template, $client_name, $session_length, $service = '' ) {
-    $practitioner   = caswell_get_option( 'practitioner_name', 'Appointment' );
-    $service        = $service ?: caswell_get_option( 'service_type', 'appointment' );
-    $client_name    = (string) $client_name;
-    $client_first   = strtok( trim( $client_name ), " \t" );
-    if ( $client_first === false ) $client_first = $client_name;
+    $practitioner = caswell_get_option( 'practitioner_name', 'Appointment' );
+    $service      = $service ?: caswell_get_option( 'service_type', 'appointment' );
+    $client_name  = (string) $client_name;
+
+    $parts        = preg_split( '/\s+/', trim( $client_name ), -1, PREG_SPLIT_NO_EMPTY );
+    $client_first = $parts ? $parts[0] : $client_name;
+    $client_short = $client_first;
+    if ( count( $parts ) > 1 ) {
+        $last_initial = mb_substr( end( $parts ), 0, 1 );
+        if ( $last_initial !== '' ) {
+            $client_short = $client_first . ' ' . mb_strtoupper( $last_initial ) . '.';
+        }
+    }
 
     return str_replace(
-        [ '{practitioner}', '{client_first}', '{client}', '{duration}', '{service}' ],
-        [ $practitioner,    $client_first,    $client_name, (int) $session_length, $service ],
+        [ '{practitioner}', '{client_short}', '{client_first}', '{client}', '{duration}', '{service}' ],
+        [ $practitioner,    $client_short,    $client_first,    $client_name, (int) $session_length, $service ],
         (string) $template
     );
 }
