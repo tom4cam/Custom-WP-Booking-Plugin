@@ -21,7 +21,7 @@ if ( 'success' === $verification ) :
     $upcoming = Caswell_Booking_DB::get_client_bookings( $user_id, true );
     $past     = array_filter(
         Caswell_Booking_DB::get_client_bookings( $user_id, false ),
-        fn($b) => strtotime( $b->start_datetime ) < time() || $b->status === 'cancelled'
+        fn($b) => caswell_local_ts($b->start_datetime) < time() || $b->status === 'cancelled'
     );
     $series   = Caswell_Booking_DB::get_client_series( $user_id );
 ?>
@@ -42,11 +42,11 @@ if ( 'success' === $verification ) :
             <?php foreach ( $upcoming as $booking ) : ?>
             <div class="caswell-booking-card" data-booking-id="<?php echo esc_attr( $booking->id ); ?>">
                 <div class="caswell-booking-date">
-                    <?php echo esc_html( wp_date( 'l, F j, Y', strtotime( $booking->start_datetime ) ) ); ?>
+                    <?php echo esc_html( wp_date( 'l, F j, Y', caswell_local_ts($booking->start_datetime) ) ); ?>
                 </div>
                 <div class="caswell-booking-time">
-                    <?php echo esc_html( wp_date( 'g:i A', strtotime( $booking->start_datetime ) ) ); ?>
-                    – <?php echo esc_html( wp_date( 'g:i A', strtotime( $booking->end_datetime ) ) ); ?>
+                    <?php echo esc_html( wp_date( 'g:i A', caswell_local_ts($booking->start_datetime) ) ); ?>
+                    – <?php echo esc_html( wp_date( 'g:i A', caswell_local_ts($booking->end_datetime) ) ); ?>
                     (<?php echo esc_html( $booking->session_length ); ?> min)
                 </div>
                 <div class="caswell-booking-meta">
@@ -56,7 +56,7 @@ if ( 'success' === $verification ) :
                     &nbsp;|&nbsp; <span class="caswell-recurring-badge">Recurring</span>
                     <?php endif; ?>
                 </div>
-                <?php if ( strtotime( $booking->start_datetime ) > time() + 3600 ) : // Can cancel if >1hr away ?>
+                <?php if ( caswell_local_ts($booking->start_datetime) > time() + 3600 ) : // Can cancel if >1hr away ?>
                 <button class="caswell-btn caswell-btn-danger caswell-btn-sm caswell-cancel-booking"
                         data-booking-id="<?php echo esc_attr( $booking->id ); ?>">
                     Cancel
@@ -102,10 +102,10 @@ if ( 'success' === $verification ) :
             <?php foreach ( array_slice( (array) $past, 0, 10 ) as $booking ) : ?>
             <div class="caswell-booking-card caswell-booking-past">
                 <div class="caswell-booking-date">
-                    <?php echo esc_html( wp_date( 'l, F j, Y', strtotime( $booking->start_datetime ) ) ); ?>
+                    <?php echo esc_html( wp_date( 'l, F j, Y', caswell_local_ts($booking->start_datetime) ) ); ?>
                 </div>
                 <div class="caswell-booking-time">
-                    <?php echo esc_html( wp_date( 'g:i A', strtotime( $booking->start_datetime ) ) ); ?>
+                    <?php echo esc_html( wp_date( 'g:i A', caswell_local_ts($booking->start_datetime) ) ); ?>
                     (<?php echo esc_html( $booking->session_length ); ?> min) —
                     <span class="caswell-status caswell-status-<?php echo esc_attr( $booking->status ); ?>"><?php echo esc_html( ucfirst( $booking->status ) ); ?></span>
                 </div>

@@ -474,7 +474,7 @@ class Caswell_Admin {
             exit;
         }
 
-        $start_ts   = strtotime( $booking->start_datetime );
+        $start_ts   = caswell_local_ts($booking->start_datetime);
         $hours_out  = ( $start_ts - time() ) / 3600;
         $within_24h = $hours_out >= 0 && $hours_out < 24;
 
@@ -501,7 +501,7 @@ class Caswell_Admin {
     }
 
     private function render_cancel_page( $booking, $mode ) {
-        $start_ts = strtotime( $booking->start_datetime );
+        $start_ts = caswell_local_ts($booking->start_datetime);
         $title    = caswell_business_name() . ' — ' . ( $mode === 'cancelled' ? 'Cancelled' : 'Cancel appointment' );
         $primary  = '#4a7c6f';
         ?>

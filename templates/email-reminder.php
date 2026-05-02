@@ -36,8 +36,8 @@ $site_url  = get_bloginfo( 'url' );
 
     <div class="detail-box">
       <table>
-        <tr><td>Date:</td><td><?php echo esc_html( wp_date( 'l, F j, Y', strtotime( $booking->start_datetime ) ) ); ?></td></tr>
-        <tr><td>Time:</td><td><?php echo esc_html( wp_date( 'g:i A', strtotime( $booking->start_datetime ) ) ); ?> – <?php echo esc_html( wp_date( 'g:i A', strtotime( $booking->end_datetime ) ) ); ?></td></tr>
+        <tr><td>Date:</td><td><?php echo esc_html( wp_date( 'l, F j, Y', caswell_local_ts($booking->start_datetime) ) ); ?></td></tr>
+        <tr><td>Time:</td><td><?php echo esc_html( wp_date( 'g:i A', caswell_local_ts($booking->start_datetime) ) ); ?> – <?php echo esc_html( wp_date( 'g:i A', caswell_local_ts($booking->end_datetime) ) ); ?></td></tr>
         <tr><td>Duration:</td><td><?php echo esc_html( $booking->session_length ); ?> minutes</td></tr>
       </table>
     </div>

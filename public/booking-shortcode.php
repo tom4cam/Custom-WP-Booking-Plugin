@@ -38,7 +38,7 @@
         <div class="caswell-reschedule-banner">
             <strong>Rescheduling your appointment.</strong><br>
             Your existing booking on
-            <em><?php echo esc_html( wp_date( 'l, F j \a\t g:i A', strtotime( $reschedule_booking->start_datetime ) ) ); ?></em>
+            <em><?php echo esc_html( wp_date( 'l, F j \a\t g:i A', caswell_local_ts($reschedule_booking->start_datetime) ) ); ?></em>
             will be cancelled when you confirm a new time below. No new payment is required —
             your existing payment carries over.
         </div>

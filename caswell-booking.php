@@ -3,7 +3,7 @@
  * Plugin Name: Caswell Booking
  * Plugin URI:  https://github.com/tom4cam/Custom-WP-Booking-Plugin
  * Description: White-label appointment booking system — Google Calendar integration, Square/Venmo payments, SMS/email notifications, and client accounts.
- * Version:     1.4.7
+ * Version:     1.4.8
  * Author:      Caswell Therapy
  * License:     GPL-2.0+
  * Text Domain: caswell-booking
@@ -11,7 +11,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CASWELL_VERSION',    '1.4.7' );
+define( 'CASWELL_VERSION',    '1.4.8' );
 define( 'CASWELL_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CASWELL_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'CASWELL_PLUGIN_FILE', __FILE__ );
@@ -306,6 +306,30 @@ function caswell_booking_reschedule_url( $booking ) {
 
 function caswell_booking_cancel_url( $booking ) {
     return caswell_booking_action_url( $booking, 'cancel' );
+}
+
+/**
+ * Parse a MySQL DATETIME string from the database as a site-local wall-clock
+ * time, returning a UTC Unix timestamp suitable for wp_date().
+ *
+ * Modern WordPress sets PHP's default timezone to UTC, so a bare
+ * `strtotime( '2026-05-15 18:00:00' )` returns the timestamp as if the
+ * string were UTC. wp_date() then formats that timestamp in the site
+ * timezone, double-shifting the time. (E.g. a 6pm MT booking shows as
+ * 12pm because 18:00 UTC = 12:00 MT.)
+ *
+ * Use this helper any time you read start_datetime / end_datetime / etc.
+ * from the database for display or comparison with time().
+ */
+function caswell_local_ts( $db_datetime ) {
+    if ( empty( $db_datetime ) ) return 0;
+    $tz = wp_timezone();
+    $dt = DateTime::createFromFormat( 'Y-m-d H:i:s', $db_datetime, $tz );
+    if ( $dt instanceof DateTime ) {
+        return $dt->getTimestamp();
+    }
+    // Fallback for non-standard formats — better than failing silently.
+    return strtotime( $db_datetime );
 }
 
 /**

@@ -40,8 +40,8 @@ $cancel_url     = caswell_booking_cancel_url( $booking );
 
     <div class="detail-box">
       <table>
-        <tr><td>Date:</td><td><?php echo esc_html( wp_date( 'l, F j, Y', strtotime( $booking->start_datetime ) ) ); ?></td></tr>
-        <tr><td>Time:</td><td><?php echo esc_html( wp_date( 'g:i A', strtotime( $booking->start_datetime ) ) ); ?> – <?php echo esc_html( wp_date( 'g:i A', strtotime( $booking->end_datetime ) ) ); ?></td></tr>
+        <tr><td>Date:</td><td><?php echo esc_html( wp_date( 'l, F j, Y', caswell_local_ts($booking->start_datetime) ) ); ?></td></tr>
+        <tr><td>Time:</td><td><?php echo esc_html( wp_date( 'g:i A', caswell_local_ts($booking->start_datetime) ) ); ?> – <?php echo esc_html( wp_date( 'g:i A', caswell_local_ts($booking->end_datetime) ) ); ?></td></tr>
         <tr><td>Duration:</td><td><?php echo esc_html( $booking->session_length ); ?> minutes</td></tr>
         <tr><td>Payment:</td><td><?php echo esc_html( ucfirst( $booking->payment_method ) ); ?> — <?php echo esc_html( ucfirst( $booking->payment_status ) ); ?></td></tr>
       </table>

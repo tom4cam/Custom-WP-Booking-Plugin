@@ -38,7 +38,7 @@ class Caswell_Cron {
         if ( ! $booking ) return;
 
         $hours_before  = (int) caswell_get_option( 'reminder_hours_before', 24 );
-        $start_ts      = strtotime( $booking->start_datetime );
+        $start_ts      = caswell_local_ts($booking->start_datetime);
         $reminder_ts   = $start_ts - ( $hours_before * HOUR_IN_SECONDS );
 
         if ( $reminder_ts <= time() ) return; // Already past

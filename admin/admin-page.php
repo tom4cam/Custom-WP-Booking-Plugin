@@ -206,8 +206,8 @@
                     <?php foreach ( $blocks as $block ) : ?>
                     <tr id="caswell-block-row-<?php echo (int) $block->id; ?>">
                         <td><?php echo esc_html( $block->label ?: '—' ); ?></td>
-                        <td><?php echo esc_html( wp_date( 'M j, Y g:i A', strtotime( $block->start_datetime ) ) ); ?></td>
-                        <td><?php echo esc_html( wp_date( 'M j, Y g:i A', strtotime( $block->end_datetime ) ) ); ?></td>
+                        <td><?php echo esc_html( wp_date( 'M j, Y g:i A', caswell_local_ts($block->start_datetime) ) ); ?></td>
+                        <td><?php echo esc_html( wp_date( 'M j, Y g:i A', caswell_local_ts($block->end_datetime) ) ); ?></td>
                         <td><button type="button" class="button button-small caswell-delete-block" data-id="<?php echo (int) $block->id; ?>">Delete</button></td>
                     </tr>
                     <?php endforeach; ?>
@@ -548,7 +548,7 @@
                 <tbody>
                     <?php foreach ( $recent as $b ) :
                         $is_cancelled = $b->status === 'cancelled';
-                        $is_past      = strtotime( $b->start_datetime ) < time();
+                        $is_past      = caswell_local_ts($b->start_datetime) < time();
                         ?>
                     <tr data-booking-id="<?php echo (int) $b->id; ?>"
                         data-name="<?php echo esc_attr( $b->name ); ?>"
@@ -561,8 +561,8 @@
                         <td data-label="Name"><?php echo esc_html( $b->name ); ?></td>
                         <td data-label="Email"><?php echo esc_html( $b->email ); ?></td>
                         <td data-label="When">
-                            <?php echo esc_html( wp_date( 'M j, Y', strtotime( $b->start_datetime ) ) ); ?><br>
-                            <small><?php echo esc_html( wp_date( 'g:i A', strtotime( $b->start_datetime ) ) ); ?> – <?php echo esc_html( wp_date( 'g:i A', strtotime( $b->end_datetime ) ) ); ?></small>
+                            <?php echo esc_html( wp_date( 'M j, Y', caswell_local_ts($b->start_datetime) ) ); ?><br>
+                            <small><?php echo esc_html( wp_date( 'g:i A', caswell_local_ts($b->start_datetime) ) ); ?> – <?php echo esc_html( wp_date( 'g:i A', caswell_local_ts($b->end_datetime) ) ); ?></small>
                         </td>
                         <td data-label="Length"><?php echo (int) $b->session_length; ?> min</td>
                         <td data-label="Status"><span style="color:<?php echo $b->status === 'confirmed' ? '#27ae60' : ( $is_cancelled ? '#c0392b' : '#e67e22' ); ?>;font-weight:600;"><?php echo esc_html( ucfirst( $b->status ) ); ?></span></td>
@@ -571,8 +571,6 @@
                         <td class="caswell-actions-cell">
                             <?php if ( ! $is_cancelled && ! $is_past ): ?>
                                 <button type="button" class="button button-small caswell-act-reschedule">Reschedule</button>
-                                <button type="button" class="button button-small caswell-act-shift" data-shift="-1" title="Subtract 1 hour (DST)">−1h</button>
-                                <button type="button" class="button button-small caswell-act-shift" data-shift="1"  title="Add 1 hour (DST)">+1h</button>
                                 <button type="button" class="button button-small caswell-act-cancel" style="color:#a00">Cancel</button>
                             <?php endif; ?>
                             <button type="button" class="button button-small caswell-act-notes">Notes</button>

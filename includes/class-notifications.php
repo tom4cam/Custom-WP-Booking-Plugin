@@ -78,9 +78,9 @@ class Caswell_Notifications {
      * @param string $admin_message   Optional personal note from the practitioner
      */
     public function send_reschedule( $booking, $previous_start, $admin_message = '' ) {
-        $old_ts   = strtotime( $previous_start );
-        $new_ts   = strtotime( $booking->start_datetime );
-        $end_ts   = strtotime( $booking->end_datetime );
+        $old_ts   = caswell_local_ts( $previous_start );
+        $new_ts   = caswell_local_ts($booking->start_datetime);
+        $end_ts   = caswell_local_ts($booking->end_datetime);
         $subject  = 'Appointment Rescheduled — ' . wp_date( 'M j, Y', $new_ts );
 
         ob_start();
@@ -135,7 +135,7 @@ class Caswell_Notifications {
      * Send a cancellation notification to the client and owner.
      */
     public function send_cancellation( $booking ) {
-        $start_ts = strtotime( $booking->start_datetime );
+        $start_ts = caswell_local_ts($booking->start_datetime);
         $subject  = 'Appointment Cancelled — ' . wp_date( 'M j, Y', $start_ts );
         $body     = sprintf(
             "Hi %s,\n\nYour %d-minute appointment on %s at %s has been cancelled.\n\nIf you'd like to rebook, please visit our booking page.\n\n%s",
@@ -227,12 +227,15 @@ class Caswell_Notifications {
             'from'       => $from_email_for_log,
         ] );
 
-        // Also notify admin (failure here is logged but doesn't change the return value).
+        // Also notify admin — but skip if the admin email is the same address
+        // as the client's, otherwise testing as Ryan-as-client lands two
+        // confirmations in the same inbox.
         $admin_email = get_bloginfo( 'admin_email' );
-        if ( 'confirmation' === $type ) {
+        $same_inbox  = $admin_email && strcasecmp( trim( $admin_email ), trim( $booking->email ) ) === 0;
+        if ( 'confirmation' === $type && ! $same_inbox ) {
             $admin_sent = wp_mail(
                 $admin_email,
-                "[New Booking] {$booking->name} — " . wp_date( 'M j, Y g:i A', strtotime( $booking->start_datetime ) ),
+                "[New Booking] {$booking->name} — " . wp_date( 'M j, Y g:i A', caswell_local_ts( $booking->start_datetime ) ),
                 $html,
                 $headers
             );
@@ -252,7 +255,7 @@ class Caswell_Notifications {
         $owner_phone = caswell_get_option( 'owner_notify_phone' );
         if ( ! $owner_phone ) return;
 
-        $start_ts = strtotime( $booking->start_datetime );
+        $start_ts = caswell_local_ts($booking->start_datetime);
         $message  = sprintf(
             'New booking: %s, %s min, %s at %s',
             $booking->name,
@@ -361,8 +364,8 @@ class Caswell_Notifications {
 
     private function interpolate( $template, $booking ) {
         $tz        = wp_timezone_string();
-        $start_ts  = strtotime( $booking->start_datetime );
-        $end_ts    = strtotime( $booking->end_datetime );
+        $start_ts  = caswell_local_ts($booking->start_datetime);
+        $end_ts    = caswell_local_ts($booking->end_datetime);
 
         $placeholders = [
             '{name}'      => esc_html( $booking->name ),
