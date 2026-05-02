@@ -3,7 +3,7 @@
  * Plugin Name: Caswell Booking
  * Plugin URI:  https://github.com/tom4cam/Custom-WP-Booking-Plugin
  * Description: White-label appointment booking system — Google Calendar integration, Square/Venmo payments, SMS/email notifications, and client accounts.
- * Version:     1.4.9
+ * Version:     1.4.10
  * Author:      Caswell Therapy
  * License:     GPL-2.0+
  * Text Domain: caswell-booking
@@ -11,7 +11,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CASWELL_VERSION',    '1.4.9' );
+define( 'CASWELL_VERSION',    '1.4.10' );
 define( 'CASWELL_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CASWELL_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'CASWELL_PLUGIN_FILE', __FILE__ );
@@ -200,6 +200,24 @@ function caswell_get_option( $key, $default = '' ) {
 
 function caswell_business_name() {
     return caswell_get_option( 'business_name', get_bloginfo( 'name' ) );
+}
+
+/**
+ * Multi-line business address from settings (Business Info tab).
+ * Returns the saved string with whitespace trimmed, or '' if empty.
+ */
+function caswell_business_address() {
+    return trim( (string) caswell_get_option( 'business_address', '' ) );
+}
+
+/**
+ * Render the business address as HTML — newlines become <br>.
+ * Useful in emails and on the public site footer.
+ */
+function caswell_business_address_html() {
+    $addr = caswell_business_address();
+    if ( '' === $addr ) return '';
+    return nl2br( esc_html( $addr ) );
 }
 
 function caswell_enabled_session_lengths() {

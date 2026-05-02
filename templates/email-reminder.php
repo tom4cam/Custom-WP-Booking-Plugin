@@ -39,6 +39,9 @@ $site_url  = get_bloginfo( 'url' );
         <tr><td>Date:</td><td><?php echo esc_html( wp_date( 'l, F j, Y', caswell_local_ts($booking->start_datetime) ) ); ?></td></tr>
         <tr><td>Time:</td><td><?php echo esc_html( wp_date( 'g:i A', caswell_local_ts($booking->start_datetime) ) ); ?> – <?php echo esc_html( wp_date( 'g:i A', caswell_local_ts($booking->end_datetime) ) ); ?></td></tr>
         <tr><td>Duration:</td><td><?php echo esc_html( $booking->session_length ); ?> minutes</td></tr>
+        <?php $caswell_addr_html = caswell_business_address_html(); if ( $caswell_addr_html ) : ?>
+        <tr><td>Location:</td><td><?php echo $caswell_addr_html; ?></td></tr>
+        <?php endif; ?>
       </table>
     </div>
 
