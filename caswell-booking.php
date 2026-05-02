@@ -3,7 +3,7 @@
  * Plugin Name: Caswell Booking
  * Plugin URI:  https://github.com/tom4cam/Custom-WP-Booking-Plugin
  * Description: White-label appointment booking system — Google Calendar integration, Square/Venmo payments, SMS/email notifications, and client accounts.
- * Version:     1.4.8
+ * Version:     1.4.9
  * Author:      Caswell Therapy
  * License:     GPL-2.0+
  * Text Domain: caswell-booking
@@ -11,7 +11,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CASWELL_VERSION',    '1.4.8' );
+define( 'CASWELL_VERSION',    '1.4.9' );
 define( 'CASWELL_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CASWELL_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'CASWELL_PLUGIN_FILE', __FILE__ );
@@ -344,6 +344,14 @@ function caswell_local_ts( $db_datetime ) {
  *   {service}        — service_type setting
  */
 function caswell_render_event_title( $template, $client_name, $session_length, $service = '' ) {
+    // Fall back to the canonical default if the template is empty or
+    // whitespace-only. caswell_get_option returns the saved empty string
+    // (not the function-default) when an admin clears the field and saves,
+    // so without this guard the calendar event title comes out blank.
+    if ( trim( (string) $template ) === '' ) {
+        $template = '{practitioner}: {client_short} ({duration} min)';
+    }
+
     $practitioner = caswell_get_option( 'practitioner_name', 'Appointment' );
     $service      = $service ?: caswell_get_option( 'service_type', 'appointment' );
     $client_name  = (string) $client_name;
@@ -358,9 +366,17 @@ function caswell_render_event_title( $template, $client_name, $session_length, $
         }
     }
 
-    return str_replace(
+    $rendered = str_replace(
         [ '{practitioner}', '{client_short}', '{client_first}', '{client}', '{duration}', '{service}' ],
         [ $practitioner,    $client_short,    $client_first,    $client_name, (int) $session_length, $service ],
         (string) $template
     );
+
+    // Last-line defense: if something exotic in the template still resolved
+    // to an empty string, fall back rather than write a blank event.
+    if ( trim( $rendered ) === '' ) {
+        $rendered = $practitioner . ': ' . $client_short;
+        if ( $session_length ) $rendered .= ' (' . (int) $session_length . ' min)';
+    }
+    return $rendered;
 }
