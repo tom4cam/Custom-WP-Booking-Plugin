@@ -131,6 +131,54 @@ class Caswell_Booking_DB {
         return $wpdb->get_results( $wpdb->prepare( $sql, $client_id ) );
     }
 
+    /**
+     * Update start/end/length of a booking. Used by the admin reschedule UI.
+     */
+    public static function update_booking_times( $id, $start_datetime, $end_datetime, $session_length = null ) {
+        global $wpdb;
+        $data = [
+            'start_datetime' => $start_datetime,
+            'end_datetime'   => $end_datetime,
+        ];
+        $fmt  = [ '%s', '%s' ];
+        if ( null !== $session_length ) {
+            $data['session_length'] = (int) $session_length;
+            $fmt[] = '%d';
+        }
+        return $wpdb->update(
+            "{$wpdb->prefix}caswell_bookings",
+            $data,
+            [ 'id' => absint( $id ) ],
+            $fmt,
+            [ '%d' ]
+        );
+    }
+
+    public static function update_booking_notes( $id, $notes ) {
+        global $wpdb;
+        return $wpdb->update(
+            "{$wpdb->prefix}caswell_bookings",
+            [ 'notes' => (string) $notes ],
+            [ 'id' => absint( $id ) ],
+            [ '%s' ],
+            [ '%d' ]
+        );
+    }
+
+    /**
+     * Permanently delete a booking row. The cron sweep and other lookups
+     * pretend it never existed. Used by the admin "Delete" action when a
+     * booking is no longer worth keeping (test entries, very old, etc.).
+     */
+    public static function delete_booking( $id ) {
+        global $wpdb;
+        return $wpdb->delete(
+            "{$wpdb->prefix}caswell_bookings",
+            [ 'id' => absint( $id ) ],
+            [ '%d' ]
+        );
+    }
+
     public static function update_booking_status( $id, $status ) {
         global $wpdb;
         return $wpdb->update(

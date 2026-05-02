@@ -19,3 +19,15 @@ node_modules/
 
 # Environment
 .env
+
+# Local tooling / personal artifacts
+.claude/
+Claude-Voice-Chat.*
+Screenshot.png
+Bookscreenshot.png
+IMG_*.heic
+IMG_*.HEIC
+IMG_*.jpg
+IMG_*.JPG
+IMG_*.png
+IMG_*.PNG

@@ -83,6 +83,13 @@
                         <p class="description">Case-insensitive keyword matched in shared calendar event titles. Default: <code>Glow</code>.</p>
                     </td>
                 </tr>
+                <tr>
+                    <th><label for="blocking_keyword">Blocking Keyword</label></th>
+                    <td>
+                        <input type="text" id="blocking_keyword" name="caswell_settings[blocking_keyword]" value="<?php echo esc_attr( $o['blocking_keyword'] ?? 'Terry' ); ?>" class="regular-text" />
+                        <p class="description">Case-insensitive keyword matched in shared calendar event titles or descriptions. Matching events <strong>block</strong> availability (treated like personal-calendar busy). Default: <code>Terry</code>. Leave blank to disable.</p>
+                    </td>
+                </tr>
             </table>
         </div>
 
@@ -411,10 +418,27 @@
                     </td>
                 </tr>
                 <tr>
-                    <th><label for="gcal_event_title">Calendar Event Title</label></th>
+                    <th><label for="gcal_shared_event_title">Shared Calendar — Event Title</label></th>
+                    <td>
+                        <input type="text" id="gcal_shared_event_title" name="caswell_settings[gcal_shared_event_title]" value="<?php echo esc_attr( $o['gcal_shared_event_title'] ?? '' ); ?>" class="regular-text" placeholder="{practitioner}: {client_first}" />
+                        <p class="description">Format for events written to the <strong>shared</strong> calendar. Defaults to <code>{practitioner}: {client_first}</code> (e.g. "Ryan: Jane"). Placeholders: <code>{practitioner}</code>, <code>{client}</code>, <code>{client_first}</code>, <code>{duration}</code>, <code>{service}</code>.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Personal Calendar — Also Create Event?</th>
+                    <td>
+                        <label>
+                            <input type="checkbox" name="caswell_settings[enable_primary_calendar_event]" value="1" <?php checked( ! empty( $o['enable_primary_calendar_event'] ) ); ?> />
+                            Also create a copy of each booking on the OAuth user's <strong>primary</strong> Google Calendar
+                        </label>
+                        <p class="description">Off by default. When on, every confirmed booking is written to both the shared calendar (always) and the practitioner's personal calendar. Use the field below to format the personal-calendar title.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="gcal_event_title">Personal Calendar — Event Title</label></th>
                     <td>
                         <input type="text" id="gcal_event_title" name="caswell_settings[gcal_event_title]" value="<?php echo esc_attr( $o['gcal_event_title'] ?? '' ); ?>" class="regular-text" placeholder="{practitioner} Appointment — {client}" />
-                        <p class="description">Format for Google Calendar event titles. Use <code>{practitioner}</code>, <code>{client}</code>, <code>{duration}</code>, <code>{service}</code>.</p>
+                        <p class="description">Only used when "Also create event on personal calendar" is on. Default: <code>{practitioner} Appointment — {client}</code>. Same placeholders as above.</p>
                     </td>
                 </tr>
                 <tr>
@@ -475,14 +499,18 @@
 
         <!-- ── Bookings ────────────────────────────────────────────────── -->
         <div id="tab-bookings" class="caswell-tab-content">
-            <h2>Recent Bookings</h2>
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:6px">
+                <h2 style="margin:0">Bookings</h2>
+                <button type="button" class="button button-primary" id="caswell-new-booking-btn">+ New booking</button>
+            </div>
+            <p class="description">Reschedule, cancel, or add notes to any booking. Reschedule and cancel actions update Google Calendar and email the client; note edits are silent. Use <strong>+ New booking</strong> to schedule a client manually (e.g. a phone-in or walk-in) — the plugin will email and text them just like a self-service booking.</p>
             <?php
             global $wpdb;
             $recent = $wpdb->get_results(
-                "SELECT * FROM {$wpdb->prefix}caswell_bookings ORDER BY created_at DESC LIMIT 50"
+                "SELECT * FROM {$wpdb->prefix}caswell_bookings ORDER BY start_datetime DESC LIMIT 100"
             );
             if ( $recent ) : ?>
-            <table class="widefat striped" style="margin-bottom:20px;">
+            <table class="widefat striped caswell-bookings-table" style="margin-bottom:20px;">
                 <thead>
                     <tr>
                         <th>ID</th>
@@ -493,29 +521,47 @@
                         <th>Status</th>
                         <th>Payment</th>
                         <th>Notes</th>
-                        <th>Created</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ( $recent as $b ) : ?>
-                    <tr>
-                        <td><?php echo (int) $b->id; ?></td>
-                        <td><?php echo esc_html( $b->name ); ?></td>
-                        <td><?php echo esc_html( $b->email ); ?></td>
-                        <td>
+                    <?php foreach ( $recent as $b ) :
+                        $is_cancelled = $b->status === 'cancelled';
+                        $is_past      = strtotime( $b->start_datetime ) < time();
+                        ?>
+                    <tr data-booking-id="<?php echo (int) $b->id; ?>"
+                        data-name="<?php echo esc_attr( $b->name ); ?>"
+                        data-email="<?php echo esc_attr( $b->email ); ?>"
+                        data-start="<?php echo esc_attr( $b->start_datetime ); ?>"
+                        data-length="<?php echo (int) $b->session_length; ?>"
+                        data-notes="<?php echo esc_attr( $b->notes ?? '' ); ?>"
+                        data-status="<?php echo esc_attr( $b->status ); ?>">
+                        <td data-label="ID"><?php echo (int) $b->id; ?></td>
+                        <td data-label="Name"><?php echo esc_html( $b->name ); ?></td>
+                        <td data-label="Email"><?php echo esc_html( $b->email ); ?></td>
+                        <td data-label="When">
                             <?php echo esc_html( wp_date( 'M j, Y', strtotime( $b->start_datetime ) ) ); ?><br>
                             <small><?php echo esc_html( wp_date( 'g:i A', strtotime( $b->start_datetime ) ) ); ?> – <?php echo esc_html( wp_date( 'g:i A', strtotime( $b->end_datetime ) ) ); ?></small>
                         </td>
-                        <td><?php echo (int) $b->session_length; ?> min</td>
-                        <td><span style="color:<?php echo $b->status === 'confirmed' ? '#27ae60' : ( $b->status === 'cancelled' ? '#c0392b' : '#e67e22' ); ?>;font-weight:600;"><?php echo esc_html( ucfirst( $b->status ) ); ?></span></td>
-                        <td><?php echo esc_html( ucfirst( $b->payment_method ) ); ?> — <?php echo esc_html( ucfirst( $b->payment_status ) ); ?></td>
-                        <td><?php echo esc_html( wp_trim_words( $b->notes ?? '', 10 ) ); ?></td>
-                        <td><small><?php echo esc_html( wp_date( 'M j, g:i A', strtotime( $b->created_at ) ) ); ?></small></td>
+                        <td data-label="Length"><?php echo (int) $b->session_length; ?> min</td>
+                        <td data-label="Status"><span style="color:<?php echo $b->status === 'confirmed' ? '#27ae60' : ( $is_cancelled ? '#c0392b' : '#e67e22' ); ?>;font-weight:600;"><?php echo esc_html( ucfirst( $b->status ) ); ?></span></td>
+                        <td data-label="Payment"><?php echo esc_html( ucfirst( $b->payment_method ) ); ?> — <?php echo esc_html( ucfirst( $b->payment_status ) ); ?></td>
+                        <td data-label="Notes" class="caswell-notes-cell"><?php echo esc_html( wp_trim_words( $b->notes ?? '', 12 ) ); ?></td>
+                        <td class="caswell-actions-cell">
+                            <?php if ( ! $is_cancelled && ! $is_past ): ?>
+                                <button type="button" class="button button-small caswell-act-reschedule">Reschedule</button>
+                                <button type="button" class="button button-small caswell-act-shift" data-shift="-1" title="Subtract 1 hour (DST)">−1h</button>
+                                <button type="button" class="button button-small caswell-act-shift" data-shift="1"  title="Add 1 hour (DST)">+1h</button>
+                                <button type="button" class="button button-small caswell-act-cancel" style="color:#a00">Cancel</button>
+                            <?php endif; ?>
+                            <button type="button" class="button button-small caswell-act-notes">Notes</button>
+                            <button type="button" class="button button-small caswell-act-delete" style="color:#a00" title="Permanently remove this booking from the database">Delete</button>
+                        </td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
-            <p class="description">Showing most recent 50 bookings.</p>
+            <p class="description">Showing 100 bookings, most recent date first.</p>
             <?php else : ?>
             <p>No bookings yet.</p>
             <?php endif; ?>
@@ -524,6 +570,21 @@
         <!-- ── Tools ───────────────────────────────────────────────────── -->
         <div id="tab-tools" class="caswell-tab-content">
             <h2>Tools &amp; Diagnostics</h2>
+
+            <h3>Email Delivery Test</h3>
+            <p class="description">If clients aren't receiving confirmation emails, run this to check whether <code>wp_mail</code> can hand off messages from your server. Most "no email arrives" issues on shared hosting (Bluehost, etc.) are because the host silently drops outbound mail — fix is to install an SMTP plugin like WP Mail SMTP and route through SendGrid/Mailgun/Gmail.</p>
+            <p>
+                <input type="email" id="caswell-test-email-to" placeholder="your@email.com" class="regular-text" style="max-width:280px" />
+                <button type="button" class="button" id="caswell-test-email-btn">Send test email</button>
+                <span id="caswell-test-email-msg" style="margin-left:12px"></span>
+            </p>
+
+            <h3>Shared Calendar — Write Test</h3>
+            <p class="description">Verifies that the OAuth Google account has <strong>"Make changes to events"</strong> permission on the shared calendar. Creates a one-off test event 10 years out and immediately deletes it. If your real bookings aren't appearing on the shared calendar, run this — most likely the calendar is shared as read-only.</p>
+            <p>
+                <button type="button" class="button" id="caswell-test-shared-cal">Run write test</button>
+                <span id="caswell-test-shared-cal-msg" style="margin-left:12px"></span>
+            </p>
 
             <h3>Debug Logging</h3>
             <p class="description">When enabled, the plugin logs API calls, errors, and booking events to <code>wp-content/caswell-booking.log</code>.</p>
@@ -590,6 +651,102 @@
 
         <?php submit_button( 'Save Settings' ); ?>
     </form>
+
+    <!--
+        Modals live OUTSIDE the settings <form>. They contain their own forms
+        which can't be HTML-nested inside the outer `<form action="options.php">`
+        — browsers strip the inner <form> tag, which causes the modal's submit
+        buttons to fall through to the outer form and navigate to options.php.
+    -->
+    <div id="caswell-new-modal" class="caswell-modal" hidden>
+        <div class="caswell-modal-backdrop"></div>
+        <div class="caswell-modal-card">
+            <h3 style="margin-top:0">Schedule a client manually</h3>
+            <p class="description" style="margin-top:0">Fill in client details and the appointment time. The plugin will create Google Calendar events and (if enabled) email + text the client.</p>
+            <form id="caswell-new-booking-form">
+                <div class="caswell-modal-fields" style="grid-template-columns:1fr 1fr">
+                    <label class="caswell-modal-row" style="grid-column:1/-1">
+                        <span>Client name</span>
+                        <input type="text" name="name" required>
+                    </label>
+                    <label class="caswell-modal-row">
+                        <span>Email</span>
+                        <input type="email" name="email" required>
+                    </label>
+                    <label class="caswell-modal-row">
+                        <span>Phone (for SMS)</span>
+                        <input type="tel" name="phone">
+                    </label>
+                    <label class="caswell-modal-row">
+                        <span>Date</span>
+                        <input type="date" name="date" required>
+                    </label>
+                    <label class="caswell-modal-row">
+                        <span>Start time</span>
+                        <input type="time" name="time" step="300" required>
+                    </label>
+                    <label class="caswell-modal-row">
+                        <span>Length (min)</span>
+                        <input type="number" name="length" min="15" step="5" value="60" required>
+                    </label>
+                    <label class="caswell-modal-row" style="grid-column:1/-1">
+                        <span>Notes (private)</span>
+                        <textarea name="notes" rows="2" placeholder="Anything Ryan should know — areas to focus on, etc."></textarea>
+                    </label>
+                    <label class="caswell-modal-row caswell-row-email" style="grid-column:1/-1">
+                        <input type="checkbox" name="send_notifications" value="1" checked>
+                        Email + text the client a confirmation
+                    </label>
+                </div>
+                <div class="caswell-modal-actions">
+                    <button type="button" class="button caswell-modal-cancel" data-modal="caswell-new-modal">Cancel</button>
+                    <button type="submit" class="button button-primary" id="caswell-new-submit">Create booking</button>
+                </div>
+                <p class="caswell-modal-msg" style="min-height:1.2em;color:#a00"></p>
+            </form>
+        </div>
+    </div>
+
+    <div id="caswell-modal" class="caswell-modal" hidden>
+        <div class="caswell-modal-backdrop"></div>
+        <div class="caswell-modal-card">
+            <h3 id="caswell-modal-title" style="margin-top:0">Reschedule booking</h3>
+            <p class="description" id="caswell-modal-sub"></p>
+            <form id="caswell-modal-form">
+                <input type="hidden" name="booking_id" value="">
+                <div class="caswell-modal-fields">
+                    <label class="caswell-modal-row caswell-row-date">
+                        <span>New date</span>
+                        <input type="date" name="new_date" required>
+                    </label>
+                    <label class="caswell-modal-row caswell-row-time">
+                        <span>New start time</span>
+                        <input type="time" name="new_time" required step="300">
+                    </label>
+                    <label class="caswell-modal-row caswell-row-length">
+                        <span>Length (min)</span>
+                        <input type="number" name="length" min="15" step="5" required>
+                    </label>
+                    <label class="caswell-modal-row caswell-row-notes" style="grid-column:1/-1">
+                        <span>Notes (private — not in client email)</span>
+                        <textarea name="notes" rows="2"></textarea>
+                    </label>
+                    <label class="caswell-modal-row caswell-row-message" style="grid-column:1/-1">
+                        <span>Personal note to client (optional, included in reschedule email)</span>
+                        <textarea name="message" rows="3" placeholder="Sorry for the change — happy to find another time if this doesn't work."></textarea>
+                    </label>
+                    <label class="caswell-modal-row caswell-row-email" style="grid-column:1/-1">
+                        <input type="checkbox" name="send_email" value="1" checked> Email the client about this change
+                    </label>
+                </div>
+                <div class="caswell-modal-actions">
+                    <button type="button" class="button caswell-modal-cancel">Cancel</button>
+                    <button type="submit" class="button button-primary" id="caswell-modal-submit">Save</button>
+                </div>
+                <p class="caswell-modal-msg" style="min-height:1.2em;color:#a00"></p>
+            </form>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -598,6 +755,100 @@
 .caswell-tab.active { background:#fff; border-bottom-color:#fff; font-weight:600; color:#2271b1; }
 .caswell-tab-content { display:none; }
 .caswell-tab-content.active { display:block; }
+
+.caswell-bookings-table .caswell-actions-cell .button { margin: 2px 2px; }
+.caswell-bookings-table .caswell-actions-cell { white-space: nowrap; }
+
+/* Mobile — convert the table to stacked cards so the Actions column
+   never falls off the right edge of the screen. Each booking becomes
+   a vertical card with labelled rows, and the action buttons sit at
+   the bottom of the card as full-width buttons. */
+@media (max-width: 782px) {
+    .caswell-bookings-table,
+    .caswell-bookings-table thead,
+    .caswell-bookings-table tbody,
+    .caswell-bookings-table tr,
+    .caswell-bookings-table td { display: block; width: 100%; box-sizing: border-box; }
+    .caswell-bookings-table thead { display: none; }
+    .caswell-bookings-table tr {
+        background: #fff !important;
+        border: 1px solid #dcdcde;
+        border-radius: 8px;
+        margin-bottom: 14px;
+        padding: 12px 14px;
+        box-shadow: 0 1px 2px rgba(0,0,0,.03);
+    }
+    .caswell-bookings-table tr:nth-child(even) { background: #fff !important; }
+    .caswell-bookings-table td {
+        border: 0 !important;
+        padding: 6px 0;
+        position: relative;
+        padding-left: 110px;
+        text-align: left;
+    }
+    .caswell-bookings-table td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 0; top: 6px;
+        width: 100px;
+        font-weight: 600;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: #555;
+    }
+    .caswell-bookings-table .caswell-actions-cell {
+        padding-left: 0;
+        padding-top: 12px;
+        margin-top: 8px;
+        border-top: 1px solid #f0f0f1 !important;
+        white-space: normal;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .caswell-bookings-table .caswell-actions-cell::before { display: none; }
+    .caswell-bookings-table .caswell-actions-cell .button {
+        flex: 1 1 calc(50% - 4px);
+        margin: 0;
+        min-height: 38px;
+    }
+    .caswell-bookings-table .caswell-actions-cell .caswell-act-reschedule,
+    .caswell-bookings-table .caswell-actions-cell .caswell-act-cancel {
+        flex: 1 1 100%;
+    }
+    .caswell-bookings-table .caswell-notes-cell {
+        font-style: italic;
+        color: #555;
+    }
+
+    /* Modal: full-bleed on small screens for the date/time pickers. */
+    .caswell-modal-card {
+        width: calc(100% - 16px);
+        padding: 18px 18px 22px;
+        max-height: 95vh;
+    }
+    .caswell-modal-fields { grid-template-columns: 1fr; gap: 10px; }
+    .caswell-modal-fields input[type="date"],
+    .caswell-modal-fields input[type="time"],
+    .caswell-modal-fields input[type="number"] { font-size: 16px; }
+}
+
+.caswell-modal { position: fixed; inset: 0; z-index: 100100; display: flex; align-items: center; justify-content: center; }
+.caswell-modal[hidden] { display: none; }
+.caswell-modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.45); }
+.caswell-modal-card { position: relative; background: #fff; border-radius: 10px; padding: 24px 28px; box-shadow: 0 24px 60px rgba(0,0,0,.25); max-width: 640px; width: calc(100% - 40px); max-height: 90vh; overflow-y: auto; }
+.caswell-modal-fields { display: grid; grid-template-columns: 1fr 1fr 120px; gap: 12px 14px; margin: 16px 0; }
+.caswell-modal-fields .caswell-modal-row { display: flex; flex-direction: column; gap: 6px; }
+.caswell-modal-fields .caswell-modal-row > span { font-size: 13px; font-weight: 500; color: #555; }
+.caswell-modal-fields input[type="date"], .caswell-modal-fields input[type="time"], .caswell-modal-fields input[type="number"], .caswell-modal-fields textarea { width: 100%; padding: 8px 10px; border: 1px solid #c3c4c7; border-radius: 4px; font: inherit; box-sizing: border-box; }
+.caswell-modal-fields textarea { resize: vertical; }
+.caswell-modal-fields .caswell-row-email { flex-direction: row; align-items: center; gap: 8px; font-size: 14px; color: #444; }
+.caswell-modal-fields .caswell-row-email > span { display: none; }
+.caswell-modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+@media (max-width: 600px) {
+    .caswell-modal-fields { grid-template-columns: 1fr; }
+}
 </style>
 
 <script>
@@ -669,6 +920,247 @@
             block_id: id
         }, function(res) {
             if (res.success) { $row.remove(); }
+        });
+    });
+}(jQuery));
+
+// ── Booking actions: reschedule / cancel / notes / DST shift ──────────
+(function($){
+    var $modal  = $('#caswell-modal');
+    var $form   = $('#caswell-modal-form');
+    var $title  = $('#caswell-modal-title');
+    var $sub    = $('#caswell-modal-sub');
+    var $msg    = $modal.find('.caswell-modal-msg');
+    var $submit = $('#caswell-modal-submit');
+
+    function openModal(mode, $row) {
+        var d = $row.data();
+        $form[0].reset();
+        $form.find('[name=booking_id]').val(d.bookingId);
+        $msg.text('');
+
+        var startDate = (d.start || '').slice(0, 10);
+        var startTime = (d.start || '').slice(11, 16);
+
+        $sub.text('#' + d.bookingId + ' · ' + d.name + ' · ' + d.email);
+
+        if (mode === 'reschedule') {
+            $title.text('Reschedule booking');
+            $form.find('.caswell-row-date, .caswell-row-time, .caswell-row-length, .caswell-row-message, .caswell-row-email').show();
+            $form.find('.caswell-row-notes').show();
+            $form.find('[name=new_date]').val(startDate);
+            $form.find('[name=new_time]').val(startTime);
+            $form.find('[name=length]').val(d.length);
+            $form.find('[name=notes]').val(d.notes || '');
+            $form.find('[name=send_email]').prop('checked', true);
+            $submit.text('Save & email client');
+            $form.data('action', 'caswell_admin_reschedule');
+        } else if (mode === 'notes') {
+            $title.text('Edit notes');
+            $form.find('.caswell-row-date, .caswell-row-time, .caswell-row-length, .caswell-row-message, .caswell-row-email').hide();
+            $form.find('.caswell-row-notes').show();
+            $form.find('[name=notes]').val(d.notes || '');
+            $submit.text('Save notes');
+            $form.data('action', 'caswell_admin_update_notes');
+        }
+
+        $modal.removeAttr('hidden');
+    }
+
+    function closeModal() {
+        $modal.attr('hidden', true);
+    }
+
+    $modal.on('click', '.caswell-modal-backdrop, .caswell-modal-cancel', closeModal);
+    $(document).on('keydown', function(e){
+        if (e.key === 'Escape' && !$modal.is('[hidden]')) closeModal();
+    });
+
+    $('.caswell-bookings-table').on('click', '.caswell-act-reschedule', function(){
+        openModal('reschedule', $(this).closest('tr'));
+    });
+    $('.caswell-bookings-table').on('click', '.caswell-act-notes', function(){
+        openModal('notes', $(this).closest('tr'));
+    });
+
+    $('.caswell-bookings-table').on('click', '.caswell-act-shift', function(){
+        var $btn  = $(this);
+        var $row  = $btn.closest('tr');
+        var hours = parseInt($btn.data('shift'), 10);
+        var label = (hours > 0 ? '+' : '') + hours + 'h';
+        if (!confirm('Shift this booking by ' + label + ' and email the client? Use this for daylight-savings adjustments.')) return;
+        $btn.prop('disabled', true).text('…');
+        $.post(caswellAdminData.ajax_url, {
+            action:      'caswell_admin_reschedule',
+            nonce:       caswellAdminData.nonce,
+            booking_id:  $row.data('booking-id'),
+            shift_hours: hours,
+            send_email:  1,
+            message:     'Daylight-savings adjustment — appointment time shifted by ' + label + '.'
+        }, function(res){
+            if (res.success) {
+                location.reload();
+            } else {
+                alert((res.data && res.data.message) || 'Error.');
+                $btn.prop('disabled', false).text(label.replace('+','+').replace('-','−'));
+            }
+        }).fail(function(){
+            alert('Network error.');
+            $btn.prop('disabled', false);
+        });
+    });
+
+    $('.caswell-bookings-table').on('click', '.caswell-act-delete', function(){
+        var $row = $(this).closest('tr');
+        if (!confirm('Permanently delete this booking?\n\nClient: ' + $row.data('name') + '\n\nThis cannot be undone. The Google Calendar events will also be removed.')) return;
+        $.post(caswellAdminData.ajax_url, {
+            action:     'caswell_admin_delete_booking',
+            nonce:      caswellAdminData.nonce,
+            booking_id: $row.data('booking-id')
+        }, function(res){
+            if (res.success) {
+                $row.fadeOut(150, function(){ $(this).remove(); });
+            } else {
+                alert((res.data && res.data.message) || 'Error.');
+            }
+        });
+    });
+
+    $('.caswell-bookings-table').on('click', '.caswell-act-cancel', function(){
+        var $row = $(this).closest('tr');
+        var send = confirm('Cancel this booking and email the client? Press OK to email, Cancel to silently cancel without email.\n\nClient: ' + $row.data('name'));
+        // Two-step: confirm cancellation, then ask about email
+        if (send && !confirm('Are you sure you want to cancel this booking?')) return;
+        $.post(caswellAdminData.ajax_url, {
+            action:     'caswell_admin_cancel',
+            nonce:      caswellAdminData.nonce,
+            booking_id: $row.data('booking-id'),
+            send_email: send ? 1 : 0
+        }, function(res){
+            if (res.success) {
+                location.reload();
+            } else {
+                alert((res.data && res.data.message) || 'Error.');
+            }
+        });
+    });
+
+    $form.on('submit', function(e){
+        e.preventDefault();
+        $msg.text('').css('color', '#a00');
+        $submit.prop('disabled', true);
+
+        var payload = { nonce: caswellAdminData.nonce, action: $form.data('action') };
+        $form.serializeArray().forEach(function(f){ payload[f.name] = f.value; });
+        // Checkboxes that aren't checked aren't in serializeArray — explicitly send 0
+        if (!$form.find('[name=send_email]:checked').length) payload.send_email = 0;
+
+        $.post(caswellAdminData.ajax_url, payload, function(res){
+            if (res.success) {
+                $msg.css('color', '#27ae60').text(res.data.message || 'Saved.');
+                setTimeout(function(){ location.reload(); }, 700);
+            } else {
+                $msg.text((res.data && res.data.message) || 'Error.');
+                $submit.prop('disabled', false);
+            }
+        }).fail(function(){
+            $msg.text('Network error.');
+            $submit.prop('disabled', false);
+        });
+    });
+
+    // Manual new-booking modal
+    var $newModal  = $('#caswell-new-modal');
+    var $newForm   = $('#caswell-new-booking-form');
+    var $newMsg    = $newModal.find('.caswell-modal-msg');
+    var $newSubmit = $('#caswell-new-submit');
+
+    function openNewModal() {
+        $newForm[0].reset();
+        $newMsg.text('').css('color','#a00');
+        // Default the date input to today
+        var d = new Date();
+        var iso = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        $newForm.find('[name=date]').val(iso);
+        $newForm.find('[name=length]').val(60);
+        $newForm.find('[name=send_notifications]').prop('checked', true);
+        $newModal.removeAttr('hidden');
+    }
+    function closeNewModal() { $newModal.attr('hidden', true); }
+
+    $('#caswell-new-booking-btn').on('click', openNewModal);
+    $newModal.on('click', '.caswell-modal-backdrop, .caswell-modal-cancel', closeNewModal);
+    $(document).on('keydown', function(e){
+        if (e.key === 'Escape' && !$newModal.is('[hidden]')) closeNewModal();
+    });
+
+    $newForm.on('submit', function(e){
+        e.preventDefault();
+        $newMsg.text('').css('color','#a00');
+        $newSubmit.prop('disabled', true).text('Creating…');
+
+        var payload = { action: 'caswell_admin_new_booking', nonce: caswellAdminData.nonce };
+        $newForm.serializeArray().forEach(function(f){ payload[f.name] = f.value; });
+        if (!$newForm.find('[name=send_notifications]:checked').length) payload.send_notifications = 0;
+
+        $.post(caswellAdminData.ajax_url, payload, function(res){
+            if (res.success) {
+                $newMsg.css('color','#27ae60').text(res.data.message || 'Created.');
+                setTimeout(function(){ location.reload(); }, 900);
+            } else {
+                $newMsg.text((res.data && res.data.message) || 'Error.');
+                $newSubmit.prop('disabled', false).text('Create booking');
+            }
+        }).fail(function(){
+            $newMsg.text('Network error.');
+            $newSubmit.prop('disabled', false).text('Create booking');
+        });
+    });
+
+    // Test email
+    $('#caswell-test-email-btn').on('click', function(){
+        var $btn = $(this);
+        var $msg = $('#caswell-test-email-msg');
+        var to   = $('#caswell-test-email-to').val().trim();
+        if (!to) { $msg.css('color','#a00').text('Enter an email address.'); return; }
+        $btn.prop('disabled', true);
+        $msg.css('color','#555').text('Sending…');
+        $.post(caswellAdminData.ajax_url, {
+            action: 'caswell_admin_test_email',
+            nonce:  caswellAdminData.nonce,
+            to:     to
+        }, function(res){
+            $btn.prop('disabled', false);
+            if (res.success) {
+                $msg.css('color','#27ae60').html('✓ ' + (res.data.message || 'Sent.'));
+            } else {
+                $msg.css('color','#a00').html('✗ ' + (res.data && res.data.message ? res.data.message : 'Failed.'));
+            }
+        }).fail(function(){
+            $btn.prop('disabled', false);
+            $msg.css('color','#a00').text('Request failed.');
+        });
+    });
+
+    // Test shared calendar
+    $('#caswell-test-shared-cal').on('click', function(){
+        var $btn = $(this);
+        var $msg = $('#caswell-test-shared-cal-msg');
+        $btn.prop('disabled', true);
+        $msg.css('color', '#555').text('Testing… (creating + deleting a one-off event)');
+        $.post(caswellAdminData.ajax_url, {
+            action: 'caswell_admin_test_shared_cal',
+            nonce:  caswellAdminData.nonce
+        }, function(res){
+            $btn.prop('disabled', false);
+            if (res.success) {
+                $msg.css('color', '#27ae60').html('✓ ' + (res.data.message || 'Success.'));
+            } else {
+                $msg.css('color', '#a00').html('✗ ' + (res.data && res.data.message ? res.data.message : 'Failed.'));
+            }
+        }).fail(function(){
+            $btn.prop('disabled', false);
+            $msg.css('color', '#a00').text('Request failed — check the debug log.');
         });
     });
 }(jQuery));

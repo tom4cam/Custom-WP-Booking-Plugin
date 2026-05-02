@@ -24,6 +24,10 @@ Personal calendar events, existing bookings, and admin time blocks always subtra
 
 **Personal calendar transparency:** events on the personal calendar marked **Free** (Google Calendar's "Show me as: Free", `transparency=transparent` in the API) are skipped — they do **not** block bookings. Use this to put informational items on your calendar (reminders, all-day flags, travel dates kept "Free") without taking yourself off the booking grid.
 
+**Shared-calendar blocking events:** in addition to "Glow" events that open availability, events on the *shared* calendar whose title or description contains the **blocking keyword** (default `Terry`, configurable in Settings → Availability) are treated as busy blocks — exactly like personal-calendar events. Use this for items on the shared calendar that represent another practitioner's booking (e.g., Terry using the room) so that Ryan's bookings don't double-book the space. Blocking takes precedence: if an event somehow matches both keywords, it blocks. Leave the field blank to disable.
+
+These shared-calendar blocks are also **padded by `buffer_time` minutes** on each side, so new appointments can't be booked right up against another practitioner's event. The same buffer applies to Ryan's own consecutive slots.
+
 ## Booking → Calendar Sync
 
 When a booking is confirmed, an event is created on **two** calendars: the OAuth user's `primary` calendar and the configured shared calendar. Both event IDs are stored in `wp_caswell_bookings` (`gcal_primary_event_id`, `gcal_shared_event_id`).
@@ -34,9 +38,10 @@ An hourly cron (`caswell_sync_shared_calendar`) detects shared-calendar events t
 
 ### 2. Fetch Blocks
 
-Gather all blocking events from three sources:
+Gather all blocking events from four sources:
 
 - **Personal calendar events** — fetched from Google Calendar
+- **Shared-calendar blocking events** — events on the shared calendar whose title or description contains the blocking keyword (default `Terry`)
 - **Existing bookings** — from the `wp_caswell_bookings` table (see [[Database-Schema]])
 - **Admin time blocks** — from the `wp_caswell_blocks` table (see [[Database-Schema]])
 

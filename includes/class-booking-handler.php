@@ -117,6 +117,29 @@ class Caswell_Booking_Handler {
         $square_token   = sanitize_text_field( $_POST['square_token'] ?? '' );
         $notes          = sanitize_textarea_field( $_POST['notes'] ?? '' );
 
+        // Reschedule mode — set when the form was loaded via the "Reschedule"
+        // link in a confirmation email. The token authenticates the original
+        // booking; we verify it now and cancel the original after the new
+        // booking is successfully created.
+        $reschedule_for     = absint( $_POST['reschedule_for'] ?? 0 );
+        $reschedule_token   = sanitize_text_field( $_POST['reschedule_token'] ?? '' );
+        $original_booking   = null;
+        if ( $reschedule_for ) {
+            $original_booking = Caswell_Booking_DB::get_booking( $reschedule_for );
+            if ( ! $original_booking
+                 || ! caswell_verify_booking_manage_token( $original_booking, $reschedule_token )
+                 || $original_booking->status === 'cancelled' ) {
+                $original_booking = null; // ignore — fall through to a normal new booking
+                $reschedule_for   = 0;
+            }
+        }
+        // For reschedules we skip payment processing — the original payment
+        // carries over. Force the new row to inherit the original's payment
+        // metadata.
+        if ( $original_booking ) {
+            $payment_method = $original_booking->payment_method;
+        }
+
         // Recurring fields
         $is_recurring      = ! empty( $_POST['recurring'] );
         $rec_frequency     = sanitize_text_field( $_POST['rec_frequency'] ?? 'weekly' );
@@ -178,7 +201,12 @@ class Caswell_Booking_Handler {
         $payment_id     = '';
         $payment_status = 'unpaid';
 
-        if ( 'square' === $payment_method ) {
+        // For a reschedule, skip payment processing — original payment already cleared.
+        if ( $original_booking ) {
+            $payment_status = $original_booking->payment_status;
+            $payment_id     = $original_booking->square_payment_id;
+        }
+        elseif ( 'square' === $payment_method ) {
             if ( ! $square_token ) {
                 delete_transient( $lock_key );
                 wp_send_json_error( 'Card token missing.' );
@@ -252,37 +280,65 @@ class Caswell_Booking_Handler {
 
         $booking = Caswell_Booking_DB::get_booking( $booking_id );
 
-        // Post to both Google Calendars (non-fatal on failure)
-        $practitioner = caswell_get_option( 'practitioner_name', 'Appointment' );
-        $service      = caswell_get_option( 'service_type', 'appointment' );
-        $event_title_tpl = caswell_get_option( 'gcal_event_title', '{practitioner} Appointment — {client}' );
-        $event_title = str_replace(
-            [ '{practitioner}', '{client}', '{duration}', '{service}' ],
-            [ $practitioner, $name, $session_length, $service ],
-            $event_title_tpl
-        );
-        $desc = "{$session_length}-min {$service} — {$name}" . ( $notes ? "\n\n{$notes}" : '' );
-        $primary_event_id = $gcal->create_event( 'primary', $event_title, $start, $end, $desc );
-        if ( ! $primary_event_id ) {
-            caswell_log( 'booking', "Google Calendar primary event creation failed for booking #{$booking_id}" );
+        // Post to Google Calendars (non-fatal on failure).
+        //
+        // Shared calendar is the source of truth (always written when one
+        // is configured). Personal/primary calendar is OPT-IN — many
+        // practitioners don't want bookings cluttering their personal
+        // calendar when the shared one already covers it. Default off;
+        // toggle in Settings → Google Calendar.
+        $service       = caswell_get_option( 'service_type', 'appointment' );
+        $desc          = "{$session_length}-min {$service} — {$name}" . ( $notes ? "\n\n{$notes}" : '' );
+        $shared_cal_id = caswell_get_option( 'shared_calendar_id' );
+
+        $primary_event_id = '';
+        if ( caswell_get_option( 'enable_primary_calendar_event', 0 ) ) {
+            $primary_title_tpl = caswell_get_option( 'gcal_event_title', '{practitioner} Appointment — {client}' );
+            $primary_title     = caswell_render_event_title( $primary_title_tpl, $name, $session_length, $service );
+            $primary_event_id  = $gcal->create_event( 'primary', $primary_title, $start, $end, $desc );
+            if ( ! $primary_event_id ) {
+                caswell_log( 'booking', "Google Calendar primary event creation failed for booking #{$booking_id}" );
+            }
         }
-        $shared_cal_id   = caswell_get_option( 'shared_calendar_id' );
+
         $shared_event_id = '';
         if ( $shared_cal_id ) {
-            $shared_event_id = $gcal->create_event( $shared_cal_id, $event_title, $start, $end, $desc );
+            $shared_title_tpl = caswell_get_option( 'gcal_shared_event_title', '{practitioner}: {client_first}' );
+            $shared_title     = caswell_render_event_title( $shared_title_tpl, $name, $session_length, $service );
+            $shared_event_id  = $gcal->create_event( $shared_cal_id, $shared_title, $start, $end, $desc );
             if ( ! $shared_event_id ) {
                 caswell_log( 'booking', "Google Calendar shared event creation failed for booking #{$booking_id}" );
             }
         }
+
         Caswell_Booking_DB::update_booking_event_ids(
             $booking_id,
             (string) $primary_event_id,
             (string) $shared_event_id
         );
 
-        // Send notifications
-        $notifier = new Caswell_Notifications();
-        $notifier->send_confirmation( $booking );
+        // If this was a reschedule, cancel the original booking now that
+        // the replacement has been confirmed. Best-effort — failures are
+        // logged but don't roll back the new booking.
+        if ( $original_booking ) {
+            Caswell_Booking_DB::update_booking_status( $original_booking->id, 'cancelled' );
+            $gcal_old = new Caswell_Google_Calendar();
+            if ( ! empty( $original_booking->gcal_primary_event_id ) ) {
+                $gcal_old->delete_event( 'primary', $original_booking->gcal_primary_event_id );
+            }
+            $shared_cal_id = caswell_get_option( 'shared_calendar_id' );
+            if ( $shared_cal_id && ! empty( $original_booking->gcal_shared_event_id ) ) {
+                $gcal_old->delete_event( $shared_cal_id, $original_booking->gcal_shared_event_id );
+            }
+            caswell_log( 'booking', "Booking #{$original_booking->id} cancelled as part of reschedule to #{$booking_id}" );
+        }
+
+        // Send notifications. The email is sent immediately on booking
+        // creation — independent of payment method or completion. So even
+        // if the client never completes a Venmo payment, they still get
+        // the confirmation email.
+        $notifier   = new Caswell_Notifications();
+        $email_sent = $notifier->send_confirmation( $booking );
 
         // Schedule reminder
         Caswell_Cron::schedule_reminder( $booking_id );
@@ -303,6 +359,14 @@ class Caswell_Booking_Handler {
         $price_key   = "venmo_price_{$session_length}";
         $venmo_price = caswell_get_option( $price_key );
 
+        // Whether SMS will actually be attempted: phone present AND Twilio
+        // creds configured. Used by the front-end so the confirmation message
+        // doesn't claim "an SMS was sent" when Twilio is disabled.
+        $sms_enabled = ! empty( $phone )
+            && caswell_get_option( 'twilio_account_sid' )
+            && caswell_get_option( 'twilio_auth_token' )
+            && caswell_get_option( 'twilio_from_phone' );
+
         wp_send_json_success( [
             'booking_id'    => $booking_id,
             'start_label'   => wp_date( 'l, F j, Y \a\t g:i A', $start_ts ),
@@ -311,6 +375,8 @@ class Caswell_Booking_Handler {
             'venmo_link'    => $venmo_user
                 ? "venmo://paycharge?txn=pay&recipients={$venmo_user}&amount={$venmo_price}"
                 : '',
+            'sms_sent'      => (bool) $sms_enabled,
+            'email_sent'    => (bool) $email_sent,
         ] );
     }
 

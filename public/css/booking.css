@@ -114,11 +114,20 @@
     padding: 10px 14px;
     border: 1px solid var(--cw-border);
     border-radius: var(--cw-radius);
-    font-size: 1rem;
+    /* 16px prevents iOS Safari from auto-zooming the page on focus */
+    font-size: 16px !important;
     font-family: var(--cw-font);
-    width: 100%;
-    max-width: 260px;
+    width: auto !important;
+    max-width: 180px !important;
+    /* Force a tight chip rather than a stretched field on iOS, where the
+       native date rendering visually centers "Mon DD, YYYY" inside whatever
+       the input width happens to be. */
+    display: block;
     box-sizing: border-box;
+}
+.caswell-field input[type="date"] {
+    max-width: 180px;
+    font-size: 16px;
 }
 #caswell-date:focus {
     outline: none;
@@ -245,6 +254,27 @@
 }
 
 .required { color: var(--cw-danger); }
+
+.caswell-opt-in-notice {
+    margin: 16px 0 0;
+    padding: 12px 14px;
+    background: rgba(0,0,0,0.03);
+    border-radius: 8px;
+    color: var(--cw-muted, #555);
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+.caswell-reschedule-banner {
+    margin: 0 0 18px;
+    padding: 14px 16px;
+    background: #fff5d6;
+    border-left: 4px solid #d99e00;
+    border-radius: 6px;
+    color: #6a4400;
+    font-size: 0.95rem;
+    line-height: 1.55;
+}
 
 /* ── Recurring options ─────────────────────────────────────────────── */
 .caswell-recurring-toggle {

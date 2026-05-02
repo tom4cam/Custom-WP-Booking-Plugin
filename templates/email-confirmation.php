@@ -1,7 +1,9 @@
 <?php defined( 'ABSPATH' ) || exit;
 // Variables available: $content (pre-interpolated body text), $booking
-$site_name = get_bloginfo( 'name' );
-$site_url  = get_bloginfo( 'url' );
+$site_name      = get_bloginfo( 'name' );
+$site_url       = get_bloginfo( 'url' );
+$reschedule_url = caswell_booking_reschedule_url( $booking );
+$cancel_url     = caswell_booking_cancel_url( $booking );
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -49,7 +51,16 @@ $site_url  = get_bloginfo( 'url' );
     <p><?php echo nl2br( esc_html( $content ) ); ?></p>
     <?php endif; ?>
 
-    <p>If you need to reschedule or cancel, please contact us as soon as possible.</p>
+    <p style="margin-top:24px;font-weight:600">Need to make a change?</p>
+    <table role="presentation" style="margin:8px 0 16px;border-collapse:separate;border-spacing:8px 0">
+      <tr>
+        <td><a href="<?php echo esc_url( $reschedule_url ); ?>" style="display:inline-block;background:#4a7c6f;color:#fff;text-decoration:none;padding:10px 18px;border-radius:6px;font-weight:600;font-size:0.95rem">Reschedule</a></td>
+        <td><a href="<?php echo esc_url( $cancel_url ); ?>" style="display:inline-block;background:#fff;color:#c0392b;text-decoration:none;padding:10px 18px;border-radius:6px;font-weight:600;font-size:0.95rem;border:1px solid #c0392b">Cancel</a></td>
+      </tr>
+    </table>
+    <p style="font-size:0.85rem;color:#666;margin:8px 0 0">
+      Cancellations made <strong>less than 24 hours</strong> before the appointment are non-refundable.
+    </p>
 
     <a href="<?php echo esc_url( $site_url ); ?>" class="cta-btn">Visit Our Website</a>
   </div>

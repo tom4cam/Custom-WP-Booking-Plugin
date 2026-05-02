@@ -6,12 +6,21 @@ class Caswell_Auth {
     const ROLE = 'caswell_client';
 
     public function __construct() {
+        // Register both `priv` and `nopriv` handlers — without the priv
+        // version, a logged-in user (e.g. an admin previewing the booking
+        // page) hits a 400 from admin-ajax.php and the front-end shows a
+        // misleading "Network error" instead of a useful response.
         add_action( 'wp_ajax_nopriv_caswell_register',       [ $this, 'ajax_register' ] );
+        add_action( 'wp_ajax_caswell_register',              [ $this, 'ajax_register' ] );
         add_action( 'wp_ajax_nopriv_caswell_login',          [ $this, 'ajax_login' ] );
+        add_action( 'wp_ajax_caswell_login',                 [ $this, 'ajax_login' ] );
         add_action( 'wp_ajax_caswell_logout',                [ $this, 'ajax_logout' ] );
         add_action( 'wp_ajax_nopriv_caswell_forgot_password',[ $this, 'ajax_forgot_password' ] );
+        add_action( 'wp_ajax_caswell_forgot_password',       [ $this, 'ajax_forgot_password' ] );
         add_action( 'wp_ajax_nopriv_caswell_reset_password', [ $this, 'ajax_reset_password' ] );
+        add_action( 'wp_ajax_caswell_reset_password',        [ $this, 'ajax_reset_password' ] );
         add_action( 'wp_ajax_nopriv_caswell_verify_email',   [ $this, 'ajax_verify_email' ] );
+        add_action( 'wp_ajax_caswell_verify_email',          [ $this, 'ajax_verify_email' ] );
         add_action( 'init', [ $this, 'handle_email_verification_link' ] );
     }
 
@@ -40,6 +49,16 @@ class Caswell_Auth {
     public function ajax_register() {
         check_ajax_referer( 'caswell_booking_nonce', 'nonce' );
 
+        // If the requester is already logged in, registration as another
+        // user would silently swap their session — most likely a confused
+        // admin testing the form. Bail with a clear message.
+        if ( is_user_logged_in() ) {
+            if ( current_user_can( 'manage_options' ) ) {
+                wp_send_json_error( "You're logged in as an admin — log out first if you want to test the registration form, or create a client via Users → Add New." );
+            }
+            wp_send_json_success( [ 'message' => "You're already logged in." ] );
+        }
+
         if ( ! $this->check_auth_rate_limit( 'register' ) ) {
             wp_send_json_error( 'Too many attempts. Please try again later.' );
         }
@@ -49,7 +68,7 @@ class Caswell_Auth {
         $password = $_POST['password'] ?? '';  // Will be hashed by WP
 
         if ( ! $name || ! $email || ! $password ) {
-            wp_send_json_error( 'All fields are required.' );
+            wp_send_json_error( 'Please fill in your name, email, and password.' );
         }
         if ( ! is_email( $email ) ) {
             wp_send_json_error( 'Invalid email address.' );

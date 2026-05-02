@@ -127,9 +127,10 @@ class Caswell_Google_Calendar {
             return [];
         }
 
-        $shared_cal_id  = caswell_get_option( 'shared_calendar_id' );
-        $personal_cal_id= caswell_get_option( 'personal_calendar_id' );
-        $keyword        = strtolower( trim( caswell_get_option( 'calendar_keyword', 'glow' ) ) );
+        $shared_cal_id    = caswell_get_option( 'shared_calendar_id' );
+        $personal_cal_id  = caswell_get_option( 'personal_calendar_id' );
+        $keyword          = strtolower( trim( caswell_get_option( 'calendar_keyword', 'glow' ) ) );
+        $blocking_keyword = strtolower( trim( caswell_get_option( 'blocking_keyword', 'terry' ) ) );
 
         if ( ! $shared_cal_id ) return [];
 
@@ -139,18 +140,43 @@ class Caswell_Google_Calendar {
         $time_min = $day_start->format( DateTime::RFC3339 );
         $time_max = $day_end->format( DateTime::RFC3339 );
 
-        // 1. Keyword-matched windows from shared calendar
-        $shared_events = $this->fetch_events( $shared_cal_id, $time_min, $time_max );
-        $glow_windows  = [];
+        // 1. Walk shared calendar events. Each event is either:
+        //    - A blocking event (title/desc matches blocking_keyword) → busy block
+        //      (e.g. "Terry" events represent another therapist using the room)
+        //    - A Glow event (title/desc matches keyword) → adds an available window
+        //    - Neither → ignored
+        // Blocking takes precedence: if an event matches both keywords (unusual),
+        // it is treated as a block.
+        //
+        // Blocking events are padded by `buffer_time` minutes on each side so
+        // a new appointment cannot be scheduled right up against an event
+        // belonging to another practitioner sharing the room. This mirrors
+        // the buffer between Ryan's own consecutive bookings.
+        $shared_events  = $this->fetch_events( $shared_cal_id, $time_min, $time_max );
+        $buffer_minutes = (int) caswell_get_option( 'buffer_time', 15 );
+        $glow_windows   = [];
+        $shared_blocks  = [];
         foreach ( $shared_events as $event ) {
-            $title = strtolower( $event['summary'] ?? '' );
+            $title = strtolower( $event['summary']     ?? '' );
             $desc  = strtolower( $event['description'] ?? '' );
-            if ( strpos( $title, $keyword ) === false && strpos( $desc, $keyword ) === false ) {
-                continue;
-            }
             $start = $this->parse_event_datetime( $event, 'start', $tz );
             $end   = $this->parse_event_datetime( $event, 'end',   $tz );
-            if ( $start && $end && $end > $start ) {
+            if ( ! $start || ! $end || $end <= $start ) {
+                continue;
+            }
+            if ( $blocking_keyword !== ''
+                 && ( strpos( $title, $blocking_keyword ) !== false
+                      || strpos( $desc, $blocking_keyword ) !== false ) ) {
+                $padded_start = clone $start;
+                $padded_end   = clone $end;
+                if ( $buffer_minutes > 0 ) {
+                    $padded_start->modify( "-{$buffer_minutes} minutes" );
+                    $padded_end->modify( "+{$buffer_minutes} minutes" );
+                }
+                $shared_blocks[] = [ 'start' => $padded_start, 'end' => $padded_end ];
+                continue;
+            }
+            if ( strpos( $title, $keyword ) !== false || strpos( $desc, $keyword ) !== false ) {
                 $glow_windows[] = [ 'start' => $start, 'end' => $end ];
             }
         }
@@ -192,8 +218,8 @@ class Caswell_Google_Calendar {
         }
         if ( empty( $windows ) ) return [];
 
-        // 3. Blocks: personal calendar events
-        $blocks = [];
+        // 3. Blocks: shared-calendar blocking events (matched above) + personal calendar events
+        $blocks = $shared_blocks;
         if ( $personal_cal_id ) {
             $personal_events = $this->fetch_events( $personal_cal_id, $time_min, $time_max );
             foreach ( $personal_events as $event ) {
@@ -393,6 +419,110 @@ class Caswell_Google_Calendar {
             caswell_log( 'gcal', "Event created: {$event_id} on {$calendar_id}" );
         }
         return $event_id;
+    }
+
+    /**
+     * Update an existing event's start/end (and optionally summary/description).
+     * Uses PATCH so unrelated event fields (attendees, reminders) are preserved.
+     *
+     * @param string   $calendar_id  Calendar containing the event
+     * @param string   $event_id     Google event ID to patch
+     * @param DateTime $start        New start
+     * @param DateTime $end          New end
+     * @param string   $title        Optional — passes through if non-null
+     * @param string   $description  Optional — passes through if non-null
+     * @return bool
+     */
+    public function update_event( $calendar_id, $event_id, DateTime $start, DateTime $end, $title = null, $description = null ) {
+        $token = $this->get_access_token();
+        if ( ! $token || ! $event_id ) return false;
+
+        $tz_string = wp_timezone_string();
+        $body = [
+            'start' => [ 'dateTime' => $start->format( DateTime::RFC3339 ), 'timeZone' => $tz_string ],
+            'end'   => [ 'dateTime' => $end->format( DateTime::RFC3339 ),   'timeZone' => $tz_string ],
+        ];
+        if ( null !== $title )       $body['summary']     = $title;
+        if ( null !== $description ) $body['description'] = $description;
+
+        $url = 'https://www.googleapis.com/calendar/v3/calendars/'
+             . rawurlencode( $calendar_id ) . '/events/' . rawurlencode( $event_id );
+
+        $response = wp_remote_request( $url, [
+            'method'  => 'PATCH',
+            'timeout' => 15,
+            'headers' => [
+                'Authorization' => "Bearer {$token}",
+                'Content-Type'  => 'application/json',
+            ],
+            'body' => wp_json_encode( $body ),
+        ] );
+
+        if ( is_wp_error( $response ) ) {
+            caswell_log( 'gcal', 'Update event failed: ' . $response->get_error_message(), [
+                'calendar' => $calendar_id,
+                'event_id' => $event_id,
+            ] );
+            return false;
+        }
+
+        $status = wp_remote_retrieve_response_code( $response );
+        if ( $status >= 200 && $status < 300 ) {
+            caswell_log( 'gcal', "Event updated: {$event_id} on {$calendar_id}" );
+            return true;
+        }
+        $data = json_decode( wp_remote_retrieve_body( $response ), true );
+        caswell_log( 'gcal', "Update event HTTP {$status}", [
+            'event_id' => $event_id,
+            'error'    => $data['error']['message'] ?? 'Unknown',
+        ] );
+        return false;
+    }
+
+    /**
+     * Diagnostic — create then delete a test event on the configured shared
+     * calendar. Returns a structured result the admin UI can display.
+     *
+     * @return array  [ 'ok' => bool, 'message' => string, 'event_id' => string|null ]
+     */
+    public function test_shared_calendar_write() {
+        $shared_cal_id = caswell_get_option( 'shared_calendar_id' );
+        if ( ! $shared_cal_id ) {
+            return [ 'ok' => false, 'message' => 'No shared calendar ID configured.', 'event_id' => null ];
+        }
+        $token = $this->get_access_token();
+        if ( ! $token ) {
+            return [ 'ok' => false, 'message' => 'Could not obtain Google access token. Re-connect OAuth.', 'event_id' => null ];
+        }
+
+        $tz    = new DateTimeZone( wp_timezone_string() );
+        $start = ( new DateTime( 'now', $tz ) )->modify( '+10 years' );
+        $end   = ( clone $start )->modify( '+15 minutes' );
+
+        $event_id = $this->create_event(
+            $shared_cal_id,
+            'Caswell Booking — calendar write test (delete me if you see this)',
+            $start,
+            $end,
+            "This is a one-off diagnostic event created by the plugin to verify\nthat the OAuth user has 'Make changes to events' permission on this\nshared calendar. It will be deleted automatically a moment after creation."
+        );
+
+        if ( ! $event_id ) {
+            return [
+                'ok'       => false,
+                'message'  => 'Could not write to the shared calendar. Most likely the OAuth user (the Google account you connected) does not have "Make changes to events" permission on this calendar. Open Google Calendar → calendar settings → "Share with specific people" and grant write access. Check the debug log for the exact API error.',
+                'event_id' => null,
+            ];
+        }
+
+        $deleted = $this->delete_event( $shared_cal_id, $event_id );
+        return [
+            'ok'       => true,
+            'message'  => $deleted
+                ? 'Shared calendar write succeeded — test event was created and removed.'
+                : 'Write succeeded, but the test event could not be deleted. Find it on the shared calendar in 10 years and remove it manually.',
+            'event_id' => $event_id,
+        ];
     }
 
     /**

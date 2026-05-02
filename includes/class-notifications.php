@@ -5,10 +5,17 @@ class Caswell_Notifications {
 
     /* ── Email ─────────────────────────────────────────────────────────── */
 
+    /**
+     * Send the booking-confirmed email + SMS + owner notification.
+     * Returns whether the client confirmation email was successfully handed
+     * off to wp_mail (a true return doesn't guarantee delivery, but a false
+     * return guarantees it did NOT send and something is wrong).
+     */
     public function send_confirmation( $booking ) {
-        $this->send_email( $booking, 'confirmation' );
+        $email_ok = $this->send_email( $booking, 'confirmation' );
         $this->send_sms( $booking, 'confirmation' );
         $this->notify_owner( $booking );
+        return (bool) $email_ok;
     }
 
     public function send_reminder( $booking ) {
@@ -17,6 +24,73 @@ class Caswell_Notifications {
         }
         if ( caswell_get_option( 'enable_sms_reminder' ) ) {
             $this->send_sms( $booking, 'reminder' );
+        }
+    }
+
+    /**
+     * Send a reschedule notification to the client (and admin).
+     *
+     * @param object $booking         Updated booking row (with new times)
+     * @param string $previous_start  MySQL datetime string for the old start
+     * @param string $admin_message   Optional personal note from the practitioner
+     */
+    public function send_reschedule( $booking, $previous_start, $admin_message = '' ) {
+        $from_name  = caswell_get_option( 'email_from_name', get_bloginfo( 'name' ) );
+        $from_email = caswell_get_option( 'email_from_address', get_bloginfo( 'admin_email' ) );
+
+        $old_ts   = strtotime( $previous_start );
+        $new_ts   = strtotime( $booking->start_datetime );
+        $end_ts   = strtotime( $booking->end_datetime );
+        $subject  = 'Appointment Rescheduled — ' . wp_date( 'M j, Y', $new_ts );
+
+        ob_start();
+        $vars = [
+            'booking'        => $booking,
+            'old_ts'         => $old_ts,
+            'new_ts'         => $new_ts,
+            'end_ts'         => $end_ts,
+            'admin_message'  => $admin_message,
+            'site_name'      => get_bloginfo( 'name' ),
+        ];
+        extract( $vars, EXTR_SKIP );
+        include CASWELL_PLUGIN_DIR . 'templates/email-rescheduled.php';
+        $html = ob_get_clean();
+
+        $headers = [
+            "From: {$from_name} <{$from_email}>",
+            'Content-Type: text/html; charset=UTF-8',
+        ];
+
+        $sent = wp_mail( $booking->email, $subject, $html, $headers );
+        if ( ! $sent ) {
+            caswell_log( 'email', 'Failed to send reschedule email', [
+                'booking_id' => $booking->id,
+                'email'      => $booking->email,
+            ] );
+        }
+
+        // Notify admin
+        $admin_email = get_bloginfo( 'admin_email' );
+        wp_mail(
+            $admin_email,
+            "[Rescheduled] {$booking->name} — " . wp_date( 'M j, Y g:i A', $new_ts ),
+            $html,
+            $headers
+        );
+
+        // SMS to client
+        if ( ! empty( $booking->phone ) ) {
+            $biz_name = caswell_get_option( 'business_name', get_bloginfo( 'name' ) );
+            $sms_msg  = sprintf(
+                '%s: Your %d-min appointment has been moved from %s %s to %s %s.',
+                $biz_name,
+                $booking->session_length,
+                wp_date( 'M j', $old_ts ),
+                wp_date( 'g:i A', $old_ts ),
+                wp_date( 'M j', $new_ts ),
+                wp_date( 'g:i A', $new_ts )
+            );
+            $this->send_raw_sms( $this->format_phone( $booking->phone ), $sms_msg );
         }
     }
 
@@ -89,6 +163,10 @@ class Caswell_Notifications {
         }
     }
 
+    /**
+     * Send a templated email. Returns the boolean wp_mail returned —
+     * true = handed off to mailer, false = wp_mail rejected it.
+     */
     private function send_email( $booking, $type ) {
         $from_name  = caswell_get_option( 'email_from_name', get_bloginfo( 'name' ) );
         $from_email = caswell_get_option( 'email_from_address', get_bloginfo( 'admin_email' ) );
@@ -102,7 +180,6 @@ class Caswell_Notifications {
         $subject = $this->interpolate( $subject, $booking );
         $body    = $this->interpolate( $body, $booking );
 
-        // Use template file
         ob_start();
         $content = $body;
         include CASWELL_PLUGIN_DIR . "templates/email-{$type}.php";
@@ -114,23 +191,27 @@ class Caswell_Notifications {
         ];
 
         $sent = wp_mail( $booking->email, $subject, $html, $headers );
-        if ( ! $sent ) {
-            caswell_log( 'email', "Failed to send {$type} email", [
-                'booking_id' => $booking->id,
-                'email'      => $booking->email,
-            ] );
-        }
+        caswell_log( 'email', $sent ? "Sent {$type} email" : "FAILED to send {$type} email", [
+            'booking_id' => $booking->id,
+            'email'      => $booking->email,
+            'from'       => "{$from_name} <{$from_email}>",
+        ] );
 
-        // Also notify admin
+        // Also notify admin (failure here is logged but doesn't change the return value).
         $admin_email = get_bloginfo( 'admin_email' );
         if ( 'confirmation' === $type ) {
-            wp_mail(
+            $admin_sent = wp_mail(
                 $admin_email,
                 "[New Booking] {$booking->name} — " . wp_date( 'M j, Y g:i A', strtotime( $booking->start_datetime ) ),
                 $html,
                 $headers
             );
+            caswell_log( 'email', $admin_sent ? 'Sent admin alert email' : 'FAILED to send admin alert email', [
+                'admin_email' => $admin_email,
+            ] );
         }
+
+        return (bool) $sent;
     }
 
     /* ── Owner SMS notification ────────────────────────────────────────── */

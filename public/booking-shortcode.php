@@ -4,10 +4,47 @@
 
     <?php
     $current_user    = wp_get_current_user();
-    $is_logged_in    = is_user_logged_in();
+    /**
+     * Only prefill the booking form for actual client accounts — never for
+     * site admins. An admin viewing the booking page (e.g. testing the
+     * widget) was getting their own contact info dropped into the form,
+     * which is confusing at best and wrong at worst.
+     */
+    $is_logged_in    = is_user_logged_in() && ! current_user_can( 'manage_options' );
     $session_lengths = caswell_enabled_session_lengths();
     $default_length  = (int) caswell_get_option( 'default_session_length', 60 );
+
+    /**
+     * Reschedule mode — set when the booking page is loaded from a signed
+     * "Reschedule" link in a confirmation email. The page renders a banner
+     * confirming which booking is being rescheduled, and the booking handler
+     * uses the (validated) booking_id+token to cancel the original after
+     * the new booking is created.
+     */
+    $reschedule_booking = null;
+    $reschedule_token   = '';
+    if ( isset( $_GET['caswell_action'], $_GET['b'], $_GET['t'] )
+         && $_GET['caswell_action'] === 'reschedule' ) {
+        $rb = Caswell_Booking_DB::get_booking( absint( $_GET['b'] ) );
+        if ( $rb && caswell_verify_booking_manage_token( $rb, sanitize_text_field( $_GET['t'] ) )
+             && $rb->status !== 'cancelled' ) {
+            $reschedule_booking = $rb;
+            $reschedule_token   = sanitize_text_field( $_GET['t'] );
+        }
+    }
     ?>
+
+    <?php if ( $reschedule_booking ) : ?>
+        <div class="caswell-reschedule-banner">
+            <strong>Rescheduling your appointment.</strong><br>
+            Your existing booking on
+            <em><?php echo esc_html( wp_date( 'l, F j \a\t g:i A', strtotime( $reschedule_booking->start_datetime ) ) ); ?></em>
+            will be cancelled when you confirm a new time below. No new payment is required —
+            your existing payment carries over.
+        </div>
+        <input type="hidden" id="caswell-reschedule-for" value="<?php echo esc_attr( $reschedule_booking->id ); ?>">
+        <input type="hidden" id="caswell-reschedule-token" value="<?php echo esc_attr( $reschedule_token ); ?>">
+    <?php endif; ?>
 
     <!-- Step 1: Pick Date & Length -->
     <div id="caswell-step-1" class="caswell-step caswell-step-active">
@@ -145,6 +182,12 @@
                     Confirm Booking
                 </button>
             </div>
+
+            <p class="caswell-opt-in-notice">
+                By booking on this website you agree to receive appointment confirmation
+                and reminder emails and text messages. Cancellations made less than 24 hours
+                before the appointment are non-refundable.
+            </p>
         </form>
     </div>
 

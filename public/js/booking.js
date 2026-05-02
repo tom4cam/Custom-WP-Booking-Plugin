@@ -255,6 +255,10 @@
             rec_frequency:   $('#caswell-rec-freq').val(),
             rec_end_date:    $('#caswell-rec-end').val(),
             rec_occurrences: $('#caswell-rec-occ').val(),
+            // Reschedule mode (set by booking-shortcode.php when the page is
+            // loaded from a signed reschedule link in a confirmation email)
+            reschedule_for:    $('#caswell-reschedule-for').val()   || '',
+            reschedule_token:  $('#caswell-reschedule-token').val() || '',
         };
 
         ajaxRequest('caswell_submit_booking', data, function (result) {
@@ -273,7 +277,16 @@
 
     /* ── Confirmation ────────────────────────────────────────────────── */
     function showConfirmation(result) {
-        $('#caswell-confirm-details').text('Your appointment on ' + result.start_label + ' is confirmed. A confirmation email and SMS have been sent.');
+        var msg = 'Your appointment on ' + result.start_label + ' is confirmed. ';
+        if (result.email_sent === false) {
+            // Server tried to email but wp_mail rejected it.
+            msg += 'We could not send a confirmation email — please check your email address or contact us directly.';
+        } else if (result.sms_sent) {
+            msg += 'A confirmation email and text message have been sent.';
+        } else {
+            msg += 'A confirmation email has been sent.';
+        }
+        $('#caswell-confirm-details').text(msg);
 
         if (result.venmo_user && $('input[name="payment_method"]:checked').val() === 'venmo') {
             const price = result.venmo_price ? '$' + result.venmo_price : '';

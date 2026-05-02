@@ -8,7 +8,19 @@ class Caswell_Admin {
         add_action( 'admin_init',    [ $this, 'register_settings' ] );
         add_action( 'admin_notices', [ $this, 'security_notices' ] );
         add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_assets' ] );
-        add_action( 'wp_ajax_caswell_toggle_logging', [ $this, 'ajax_toggle_logging' ] );
+        add_action( 'wp_ajax_caswell_toggle_logging',         [ $this, 'ajax_toggle_logging' ] );
+        add_action( 'wp_ajax_caswell_admin_reschedule',       [ $this, 'ajax_admin_reschedule' ] );
+        add_action( 'wp_ajax_caswell_admin_cancel',           [ $this, 'ajax_admin_cancel' ] );
+        add_action( 'wp_ajax_caswell_admin_update_notes',     [ $this, 'ajax_admin_update_notes' ] );
+        add_action( 'wp_ajax_caswell_admin_test_shared_cal',  [ $this, 'ajax_admin_test_shared_cal' ] );
+        add_action( 'wp_ajax_caswell_admin_delete_booking',   [ $this, 'ajax_admin_delete_booking' ] );
+        add_action( 'wp_ajax_caswell_admin_test_email',       [ $this, 'ajax_admin_test_email' ] );
+        add_action( 'wp_ajax_caswell_admin_new_booking',      [ $this, 'ajax_admin_new_booking' ] );
+
+        // Self-service cancel via token (no login required) — handled on `init`
+        // before WordPress routes to the booking page so we can render our own
+        // confirmation HTML for the cancel flow.
+        add_action( 'init', [ $this, 'maybe_handle_self_serve_cancel' ] );
     }
 
     public function add_menu() {
@@ -49,6 +61,7 @@ class Caswell_Admin {
         $clean['shared_calendar_id']   = sanitize_text_field( $input['shared_calendar_id'] ?? '' );
         $clean['personal_calendar_id'] = sanitize_text_field( $input['personal_calendar_id'] ?? '' );
         $clean['calendar_keyword']     = sanitize_text_field( $input['calendar_keyword'] ?? 'Glow' );
+        $clean['blocking_keyword']     = sanitize_text_field( $input['blocking_keyword'] ?? 'Terry' );
 
         // Session lengths
         foreach ( [ 30, 60, 90 ] as $len ) {
@@ -167,7 +180,9 @@ class Caswell_Admin {
         $clean['practitioner_name']  = sanitize_text_field( $input['practitioner_name'] ?? '' );
         $clean['service_type']       = sanitize_text_field( $input['service_type'] ?? '' );
         $clean['hero_subtitle']      = sanitize_text_field( $input['hero_subtitle'] ?? '' );
-        $clean['gcal_event_title']   = sanitize_text_field( $input['gcal_event_title'] ?? '' );
+        $clean['gcal_event_title']        = sanitize_text_field( $input['gcal_event_title'] ?? '' );
+        $clean['gcal_shared_event_title'] = sanitize_text_field( $input['gcal_shared_event_title'] ?? '' );
+        $clean['enable_primary_calendar_event'] = ! empty( $input['enable_primary_calendar_event'] ) ? 1 : 0;
         $clean['booking_page_title'] = sanitize_text_field( $input['booking_page_title'] ?? '' );
 
         // Business info
@@ -233,5 +248,469 @@ class Caswell_Admin {
         $enabled = ! empty( $_POST['enabled'] );
         update_option( 'caswell_enable_logging', $enabled ? 1 : 0 );
         wp_send_json_success();
+    }
+
+    /* ── Admin booking actions ─────────────────────────────────────────── */
+
+    private function require_admin() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( [ 'message' => 'Not authorized.' ] );
+        }
+    }
+
+    private function delete_booking_calendar_events( $booking ) {
+        if ( ! $booking ) return;
+        $gcal = new Caswell_Google_Calendar();
+        if ( ! empty( $booking->gcal_primary_event_id ) ) {
+            $gcal->delete_event( 'primary', $booking->gcal_primary_event_id );
+        }
+        $shared_cal_id = caswell_get_option( 'shared_calendar_id' );
+        if ( $shared_cal_id && ! empty( $booking->gcal_shared_event_id ) ) {
+            $gcal->delete_event( $shared_cal_id, $booking->gcal_shared_event_id );
+        }
+    }
+
+    /**
+     * Reschedule a booking. Accepts:
+     *   - new_date  (Y-m-d)
+     *   - new_time  (H:i)         OR a shift_hours integer (DST adjust)
+     *   - length    (int minutes, optional)
+     *   - notes     (string, optional)
+     *   - message   (string, optional — included in client email)
+     *   - send_email (1/0, default 1)
+     *
+     * Updates DB, patches both Google Calendar events (primary + shared) in
+     * place via update_event(), and emails the client.
+     */
+    public function ajax_admin_reschedule() {
+        check_ajax_referer( 'caswell_admin_nonce', 'nonce' );
+        $this->require_admin();
+
+        $booking_id = absint( $_POST['booking_id'] ?? 0 );
+        $booking    = Caswell_Booking_DB::get_booking( $booking_id );
+        if ( ! $booking ) wp_send_json_error( [ 'message' => 'Booking not found.' ] );
+        if ( $booking->status === 'cancelled' ) {
+            wp_send_json_error( [ 'message' => 'Booking is already cancelled — un-cancel before rescheduling.' ] );
+        }
+
+        $tz             = new DateTimeZone( wp_timezone_string() );
+        $previous_start = $booking->start_datetime;
+        $session_length = isset( $_POST['length'] ) ? max( 15, absint( $_POST['length'] ) ) : (int) $booking->session_length;
+
+        $shift_hours = isset( $_POST['shift_hours'] ) ? (int) $_POST['shift_hours'] : 0;
+        if ( $shift_hours !== 0 ) {
+            $start = new DateTime( $booking->start_datetime, $tz );
+            $sign  = $shift_hours >= 0 ? '+' : '-';
+            $start->modify( $sign . abs( $shift_hours ) . ' hours' );
+            $new_date = $start->format( 'Y-m-d' );
+            $new_time = $start->format( 'H:i' );
+        } else {
+            $new_date = sanitize_text_field( $_POST['new_date'] ?? '' );
+            $new_time = sanitize_text_field( $_POST['new_time'] ?? '' );
+            if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $new_date ) ) {
+                wp_send_json_error( [ 'message' => 'Invalid date.' ] );
+            }
+            if ( ! preg_match( '/^\d{1,2}:\d{2}$/', $new_time ) ) {
+                wp_send_json_error( [ 'message' => 'Invalid time.' ] );
+            }
+        }
+
+        try {
+            $start = new DateTime( "{$new_date} {$new_time}:00", $tz );
+        } catch ( Exception $e ) {
+            wp_send_json_error( [ 'message' => 'Could not parse the new date/time.' ] );
+        }
+        $end = ( clone $start )->modify( "+{$session_length} minutes" );
+
+        $start_str = $start->format( 'Y-m-d H:i:s' );
+        $end_str   = $end->format( 'Y-m-d H:i:s' );
+
+        Caswell_Booking_DB::update_booking_times( $booking_id, $start_str, $end_str, $session_length );
+
+        if ( isset( $_POST['notes'] ) ) {
+            Caswell_Booking_DB::update_booking_notes( $booking_id, sanitize_textarea_field( $_POST['notes'] ) );
+        }
+
+        // Update Google Calendar — patch in place when we have IDs, else recreate
+        $gcal     = new Caswell_Google_Calendar();
+        $shared   = caswell_get_option( 'shared_calendar_id' );
+        $patched_primary = false;
+        $patched_shared  = false;
+
+        if ( ! empty( $booking->gcal_primary_event_id ) ) {
+            $patched_primary = $gcal->update_event( 'primary', $booking->gcal_primary_event_id, $start, $end );
+        }
+        if ( $shared && ! empty( $booking->gcal_shared_event_id ) ) {
+            $patched_shared = $gcal->update_event( $shared, $booking->gcal_shared_event_id, $start, $end );
+        }
+
+        $reloaded = Caswell_Booking_DB::get_booking( $booking_id );
+        $send_email = ! isset( $_POST['send_email'] ) || ! empty( $_POST['send_email'] );
+        if ( $send_email ) {
+            $admin_message = sanitize_textarea_field( $_POST['message'] ?? '' );
+            $notifier = new Caswell_Notifications();
+            $notifier->send_reschedule( $reloaded, $previous_start, $admin_message );
+        }
+
+        caswell_log( 'booking', "Booking #{$booking_id} rescheduled by admin", [
+            'from'            => $previous_start,
+            'to'              => $start_str,
+            'patched_primary' => $patched_primary,
+            'patched_shared'  => $patched_shared,
+        ] );
+
+        wp_send_json_success( [
+            'message'         => 'Booking rescheduled.',
+            'patched_primary' => $patched_primary,
+            'patched_shared'  => $patched_shared,
+            'new_start'       => $start_str,
+            'new_end'         => $end_str,
+        ] );
+    }
+
+    public function ajax_admin_cancel() {
+        check_ajax_referer( 'caswell_admin_nonce', 'nonce' );
+        $this->require_admin();
+
+        $booking_id = absint( $_POST['booking_id'] ?? 0 );
+        $booking    = Caswell_Booking_DB::get_booking( $booking_id );
+        if ( ! $booking ) wp_send_json_error( [ 'message' => 'Booking not found.' ] );
+        if ( $booking->status === 'cancelled' ) {
+            wp_send_json_success( [ 'message' => 'Already cancelled.' ] );
+        }
+
+        Caswell_Booking_DB::update_booking_status( $booking_id, 'cancelled' );
+        $this->delete_booking_calendar_events( $booking );
+
+        $send_email = ! isset( $_POST['send_email'] ) || ! empty( $_POST['send_email'] );
+        if ( $send_email ) {
+            $notifier = new Caswell_Notifications();
+            $notifier->send_cancellation( $booking );
+        }
+
+        caswell_log( 'booking', "Booking #{$booking_id} cancelled by admin" );
+        wp_send_json_success( [ 'message' => 'Booking cancelled.' ] );
+    }
+
+    public function ajax_admin_update_notes() {
+        check_ajax_referer( 'caswell_admin_nonce', 'nonce' );
+        $this->require_admin();
+
+        $booking_id = absint( $_POST['booking_id'] ?? 0 );
+        $booking    = Caswell_Booking_DB::get_booking( $booking_id );
+        if ( ! $booking ) wp_send_json_error( [ 'message' => 'Booking not found.' ] );
+
+        $notes = sanitize_textarea_field( $_POST['notes'] ?? '' );
+        Caswell_Booking_DB::update_booking_notes( $booking_id, $notes );
+
+        wp_send_json_success( [ 'message' => 'Notes saved.' ] );
+    }
+
+    public function ajax_admin_test_shared_cal() {
+        check_ajax_referer( 'caswell_admin_nonce', 'nonce' );
+        $this->require_admin();
+        $gcal   = new Caswell_Google_Calendar();
+        $result = $gcal->test_shared_calendar_write();
+        if ( $result['ok'] ) {
+            wp_send_json_success( $result );
+        }
+        wp_send_json_error( $result );
+    }
+
+    /**
+     * Permanently delete a booking. Also removes the matching Google
+     * Calendar events on a best-effort basis. Distinct from the existing
+     * Cancel action — Cancel keeps the row in place (as a "cancelled" row,
+     * for record-keeping) and emails the client; Delete just removes it
+     * with no email.
+     */
+    public function ajax_admin_delete_booking() {
+        check_ajax_referer( 'caswell_admin_nonce', 'nonce' );
+        $this->require_admin();
+
+        $booking_id = absint( $_POST['booking_id'] ?? 0 );
+        $booking    = Caswell_Booking_DB::get_booking( $booking_id );
+        if ( ! $booking ) wp_send_json_error( [ 'message' => 'Booking not found.' ] );
+
+        $this->delete_booking_calendar_events( $booking );
+        Caswell_Booking_DB::delete_booking( $booking_id );
+
+        caswell_log( 'booking', "Booking #{$booking_id} permanently deleted by admin", [
+            'name'  => $booking->name,
+            'email' => $booking->email,
+        ] );
+        wp_send_json_success( [ 'message' => 'Booking deleted.' ] );
+    }
+
+    /**
+     * Self-service cancel link from confirmation emails/SMS.
+     *
+     *  /book/?caswell_action=cancel&b=ID&t=TOKEN
+     *
+     * GET shows a confirmation page with the 24h-no-refund policy and the
+     * booking details. The user clicks "Confirm cancellation" which POSTs
+     * to the same URL with `confirm=1` — that runs the cancellation,
+     * deletes both Google Calendar events, and emails the client.
+     *
+     * Token is bound to booking id + email (HMAC of AUTH_KEY) so a leaked
+     * link doesn't grant cancel rights to other bookings, but stays valid
+     * even after the booking is rescheduled.
+     */
+    public function maybe_handle_self_serve_cancel() {
+        if ( empty( $_GET['caswell_action'] ) || $_GET['caswell_action'] !== 'cancel' ) return;
+        if ( empty( $_GET['b'] ) || empty( $_GET['t'] ) ) return;
+
+        $booking = Caswell_Booking_DB::get_booking( absint( $_GET['b'] ) );
+        $token   = sanitize_text_field( $_GET['t'] );
+        if ( ! $booking || ! caswell_verify_booking_manage_token( $booking, $token ) ) {
+            wp_die( 'This link is no longer valid.', 'Caswell Booking', [ 'response' => 410 ] );
+        }
+
+        if ( $booking->status === 'cancelled' ) {
+            $this->render_cancel_page( $booking, 'already_cancelled' );
+            exit;
+        }
+
+        $start_ts   = strtotime( $booking->start_datetime );
+        $hours_out  = ( $start_ts - time() ) / 3600;
+        $within_24h = $hours_out >= 0 && $hours_out < 24;
+
+        // POST means they clicked "Confirm cancellation"
+        if ( $_SERVER['REQUEST_METHOD'] === 'POST' && ! empty( $_POST['confirm'] ) ) {
+            // Re-check token from the form
+            if ( ! caswell_verify_booking_manage_token( $booking, sanitize_text_field( $_POST['t'] ?? '' ) ) ) {
+                wp_die( 'Invalid token.', 'Caswell Booking', [ 'response' => 403 ] );
+            }
+            Caswell_Booking_DB::update_booking_status( $booking->id, 'cancelled' );
+            $this->delete_booking_calendar_events( $booking );
+            $notifier = new Caswell_Notifications();
+            $notifier->send_cancellation( $booking );
+            caswell_log( 'booking', "Booking #{$booking->id} self-cancelled by client", [
+                'within_24h' => $within_24h,
+            ] );
+            $this->render_cancel_page( $booking, 'cancelled' );
+            exit;
+        }
+
+        // GET — show the confirmation page
+        $this->render_cancel_page( $booking, $within_24h ? 'within_24h' : 'confirm' );
+        exit;
+    }
+
+    private function render_cancel_page( $booking, $mode ) {
+        $start_ts = strtotime( $booking->start_datetime );
+        $title    = caswell_business_name() . ' — ' . ( $mode === 'cancelled' ? 'Cancelled' : 'Cancel appointment' );
+        $primary  = '#4a7c6f';
+        ?>
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title><?php echo esc_html( $title ); ?></title>
+<style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background: #f5f9f7; margin: 0; padding: 32px 16px; color: #333; line-height: 1.55; }
+    .card { max-width: 540px; margin: 4vh auto; background: #fff; border-radius: 12px; padding: 32px 28px; box-shadow: 0 4px 18px rgba(0,0,0,.06); }
+    h1 { margin: 0 0 12px; font-size: 1.6rem; color: <?php echo $primary; ?>; }
+    .summary { background: #f0f7f5; border-left: 4px solid <?php echo $primary; ?>; border-radius: 6px; padding: 14px 16px; margin: 18px 0; font-size: 0.95rem; }
+    .summary strong { color: <?php echo $primary; ?>; }
+    .warn { background: #fff5d6; border-left: 4px solid #d99e00; color: #6a4400; padding: 14px 16px; border-radius: 6px; margin: 18px 0; font-size: 0.95rem; }
+    .ok { background: #e6f4ec; border-left: 4px solid #2d8a4e; color: #1d6c34; padding: 14px 16px; border-radius: 6px; margin: 18px 0; }
+    .btn { display: inline-block; padding: 12px 22px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.98rem; border: 0; cursor: pointer; font-family: inherit; }
+    .btn-danger { background: #c0392b; color: #fff; }
+    .btn-danger:hover { background: #a83323; }
+    .btn-ghost { background: #fff; color: #555; border: 1px solid #ccc; margin-right: 8px; }
+    .btn-primary { background: <?php echo $primary; ?>; color: #fff; }
+    a { color: <?php echo $primary; ?>; }
+</style>
+</head><body>
+<div class="card">
+    <?php if ( $mode === 'cancelled' ) : ?>
+        <h1>Appointment cancelled</h1>
+        <p>Your appointment has been cancelled. A confirmation email is on its way.</p>
+        <div class="summary">
+            <div><strong>Was scheduled for:</strong> <?php echo esc_html( wp_date( 'l, F j, Y \a\t g:i A', $start_ts ) ); ?></div>
+            <div><strong>Client:</strong> <?php echo esc_html( $booking->name ); ?></div>
+        </div>
+        <p>If you'd like to rebook for another time, <a href="<?php echo esc_url( get_permalink( (int) get_option( 'caswell_booking_page_id' ) ) ?: home_url( '/book/' ) ); ?>">visit the booking page</a>.</p>
+
+    <?php elseif ( $mode === 'already_cancelled' ) : ?>
+        <h1>Already cancelled</h1>
+        <p>This appointment was already cancelled. No further action is needed.</p>
+
+    <?php else : ?>
+        <h1>Cancel this appointment?</h1>
+        <p>You're about to cancel:</p>
+        <div class="summary">
+            <div><strong>When:</strong> <?php echo esc_html( wp_date( 'l, F j, Y \a\t g:i A', $start_ts ) ); ?></div>
+            <div><strong>Length:</strong> <?php echo (int) $booking->session_length; ?> minutes</div>
+            <div><strong>Client:</strong> <?php echo esc_html( $booking->name ); ?></div>
+        </div>
+
+        <?php if ( $mode === 'within_24h' ) : ?>
+            <div class="warn">
+                <strong>Heads up — your appointment is less than 24 hours away.</strong><br>
+                Cancellations made less than 24 hours before the appointment are <strong>non-refundable</strong>.
+                You can still cancel below if you can't make it; please reach out directly if you'd like to discuss.
+            </div>
+        <?php else : ?>
+            <p style="font-size:0.9rem;color:#666">Cancellations made <strong>more than 24 hours</strong> in advance are eligible for a refund. Cancellations within 24 hours are non-refundable.</p>
+        <?php endif; ?>
+
+        <form method="post" style="margin-top:24px">
+            <input type="hidden" name="confirm" value="1">
+            <input type="hidden" name="t" value="<?php echo esc_attr( caswell_booking_manage_token( $booking ) ); ?>">
+            <a class="btn btn-ghost" href="<?php echo esc_url( get_permalink( (int) get_option( 'caswell_booking_page_id' ) ) ?: home_url( '/' ) ); ?>">Keep appointment</a>
+            <button type="submit" class="btn btn-danger">Confirm cancellation</button>
+            <p style="margin-top:18px"><a href="<?php echo esc_url( caswell_booking_reschedule_url( $booking ) ); ?>">Or reschedule instead</a></p>
+        </form>
+    <?php endif; ?>
+</div>
+</body></html>
+        <?php
+    }
+
+    /**
+     * Create a booking on behalf of a client. Skips payment, creates GCal
+     * events on both calendars, sends the same confirmation email + SMS the
+     * regular booking flow uses.
+     */
+    public function ajax_admin_new_booking() {
+        check_ajax_referer( 'caswell_admin_nonce', 'nonce' );
+        $this->require_admin();
+
+        $name     = sanitize_text_field( $_POST['name']  ?? '' );
+        $email    = sanitize_email(      $_POST['email'] ?? '' );
+        $phone    = sanitize_text_field( $_POST['phone'] ?? '' );
+        $date     = sanitize_text_field( $_POST['date']  ?? '' );
+        $time     = sanitize_text_field( $_POST['time']  ?? '' );
+        $length   = max( 15, absint( $_POST['length'] ?? 60 ) );
+        $notes    = sanitize_textarea_field( $_POST['notes'] ?? '' );
+        $send     = ! isset( $_POST['send_notifications'] ) || ! empty( $_POST['send_notifications'] );
+
+        if ( ! $name )                       wp_send_json_error( [ 'message' => 'Name is required.' ] );
+        if ( ! $email || ! is_email( $email ) ) wp_send_json_error( [ 'message' => 'Valid email is required.' ] );
+        if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) wp_send_json_error( [ 'message' => 'Invalid date.' ] );
+        if ( ! preg_match( '/^\d{1,2}:\d{2}$/',     $time ) ) wp_send_json_error( [ 'message' => 'Invalid time.' ] );
+
+        $tz       = new DateTimeZone( wp_timezone_string() );
+        try {
+            $start = new DateTime( "{$date} {$time}:00", $tz );
+        } catch ( Exception $e ) {
+            wp_send_json_error( [ 'message' => 'Could not parse the date/time.' ] );
+        }
+        $end = ( clone $start )->modify( "+{$length} minutes" );
+
+        // Insert booking. Marked confirmed + unpaid — admin can mark paid later.
+        $booking_id = Caswell_Booking_DB::insert_booking( [
+            'name'           => $name,
+            'email'          => $email,
+            'phone'          => $phone,
+            'session_length' => $length,
+            'start_datetime' => $start->format( 'Y-m-d H:i:s' ),
+            'end_datetime'   => $end->format( 'Y-m-d H:i:s' ),
+            'status'         => 'confirmed',
+            'payment_method' => 'venmo',  // a non-square placeholder; admin can edit
+            'payment_status' => 'unpaid',
+            'notes'          => $notes,
+        ] );
+        if ( ! $booking_id ) wp_send_json_error( [ 'message' => 'Could not save the booking.' ] );
+
+        $booking = Caswell_Booking_DB::get_booking( $booking_id );
+
+        // Google Calendar events (best effort). Same opt-in rule as the
+        // public booking flow — primary calendar is off by default.
+        $gcal          = new Caswell_Google_Calendar();
+        $service       = caswell_get_option( 'service_type', 'appointment' );
+        $desc          = "Manually scheduled by admin.\nClient: {$name}\nEmail: {$email}\nPhone: {$phone}";
+        if ( $notes ) $desc .= "\n\nNotes: {$notes}";
+
+        $primary_event_id = '';
+        if ( caswell_get_option( 'enable_primary_calendar_event', 0 ) ) {
+            $primary_title_tpl = caswell_get_option( 'gcal_event_title', '{practitioner} Appointment — {client}' );
+            $primary_title     = caswell_render_event_title( $primary_title_tpl, $name, $length, $service );
+            $primary_event_id  = $gcal->create_event( 'primary', $primary_title, $start, $end, $desc );
+        }
+
+        $shared_cal_id   = caswell_get_option( 'shared_calendar_id' );
+        $shared_event_id = '';
+        if ( $shared_cal_id ) {
+            $shared_title_tpl = caswell_get_option( 'gcal_shared_event_title', '{practitioner}: {client_first}' );
+            $shared_title     = caswell_render_event_title( $shared_title_tpl, $name, $length, $service );
+            $shared_event_id  = $gcal->create_event( $shared_cal_id, $shared_title, $start, $end, $desc );
+        }
+        Caswell_Booking_DB::update_booking_event_ids( $booking_id, (string) $primary_event_id, (string) $shared_event_id );
+
+        // Notifications.
+        $email_sent = false;
+        if ( $send ) {
+            $notifier   = new Caswell_Notifications();
+            $email_sent = $notifier->send_confirmation( $booking );
+            Caswell_Cron::schedule_reminder( $booking_id );
+        }
+
+        caswell_log( 'booking', "Booking #{$booking_id} created manually by admin", [
+            'name'           => $name,
+            'email'          => $email,
+            'start'          => $start->format( 'Y-m-d H:i:s' ),
+            'gcal_primary'   => (bool) $primary_event_id,
+            'gcal_shared'    => (bool) $shared_event_id,
+            'notifications'  => $send,
+            'email_sent'     => $email_sent,
+        ] );
+
+        wp_send_json_success( [
+            'message'       => $send
+                ? ( $email_sent
+                    ? 'Booking created. Confirmation email + SMS sent.'
+                    : 'Booking created. Email could not be delivered — check Tools → Email Delivery Test.' )
+                : 'Booking created. No notifications sent.',
+            'booking_id'    => $booking_id,
+            'gcal_primary'  => (bool) $primary_event_id,
+            'gcal_shared'   => (bool) $shared_event_id,
+            'email_sent'    => $email_sent,
+        ] );
+    }
+
+    /**
+     * Diagnostic — send a test email to a configurable address. Helps
+     * verify wp_mail delivery without having to walk through a full
+     * booking flow. Reports back whether wp_mail accepted the message.
+     */
+    public function ajax_admin_test_email() {
+        check_ajax_referer( 'caswell_admin_nonce', 'nonce' );
+        $this->require_admin();
+
+        $to = sanitize_email( $_POST['to'] ?? '' );
+        if ( ! $to || ! is_email( $to ) ) {
+            wp_send_json_error( [ 'message' => 'Please enter a valid email address.' ] );
+        }
+
+        $from_name  = caswell_get_option( 'email_from_name',    get_bloginfo( 'name' ) );
+        $from_email = caswell_get_option( 'email_from_address', get_bloginfo( 'admin_email' ) );
+
+        $subject = '[' . get_bloginfo( 'name' ) . '] Email delivery test';
+        $body    = "<p>If you're seeing this, your site can send mail through wp_mail.</p>"
+                 . "<p>From header used: <code>{$from_name} &lt;{$from_email}&gt;</code></p>"
+                 . "<p>Site: <code>" . esc_html( site_url() ) . "</code></p>";
+
+        $headers = [
+            "From: {$from_name} <{$from_email}>",
+            'Content-Type: text/html; charset=UTF-8',
+        ];
+
+        $sent = wp_mail( $to, $subject, $body, $headers );
+        caswell_log( 'email', $sent ? 'Test email sent OK' : 'Test email FAILED', [
+            'to'   => $to,
+            'from' => "{$from_name} <{$from_email}>",
+        ] );
+
+        if ( $sent ) {
+            wp_send_json_success( [
+                'message' => "wp_mail accepted the message. Check {$to} (and the spam folder). If it doesn't arrive, your host is likely silently dropping outbound mail — install an SMTP plugin (e.g. WP Mail SMTP) and configure SendGrid / Mailgun / Gmail SMTP.",
+            ] );
+        }
+        wp_send_json_error( [
+            'message' => "wp_mail returned false — the message was not handed off. Check the From address (<code>{$from_email}</code>) is on a domain you own and that your host allows outbound mail. The debug log has more detail.",
+        ] );
     }
 }

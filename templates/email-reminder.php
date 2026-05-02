@@ -46,7 +46,18 @@ $site_url  = get_bloginfo( 'url' );
     <p><?php echo nl2br( esc_html( $content ) ); ?></p>
     <?php endif; ?>
 
-    <p>We look forward to seeing you soon. If you need to reschedule, please contact us right away.</p>
+    <p>We look forward to seeing you soon!</p>
+
+    <p style="margin-top:18px;font-weight:600">Need to make a change?</p>
+    <table role="presentation" style="margin:8px 0 16px;border-collapse:separate;border-spacing:8px 0">
+      <tr>
+        <td><a href="<?php echo esc_url( caswell_booking_reschedule_url( $booking ) ); ?>" style="display:inline-block;background:#4a7c6f;color:#fff;text-decoration:none;padding:10px 18px;border-radius:6px;font-weight:600;font-size:0.95rem">Reschedule</a></td>
+        <td><a href="<?php echo esc_url( caswell_booking_cancel_url( $booking ) ); ?>" style="display:inline-block;background:#fff;color:#c0392b;text-decoration:none;padding:10px 18px;border-radius:6px;font-weight:600;font-size:0.95rem;border:1px solid #c0392b">Cancel</a></td>
+      </tr>
+    </table>
+    <p style="font-size:0.85rem;color:#666;margin:8px 0 0">
+      Cancellations made <strong>less than 24 hours</strong> before the appointment are non-refundable.
+    </p>
   </div>
   <div class="footer">
     <p>&copy; <?php echo date( 'Y' ); ?> <?php echo esc_html( $site_name ); ?>. All rights reserved.</p>

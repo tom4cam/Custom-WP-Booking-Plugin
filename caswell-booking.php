@@ -3,7 +3,7 @@
  * Plugin Name: Caswell Booking
  * Plugin URI:  https://github.com/tom4cam/Custom-WP-Booking-Plugin
  * Description: White-label appointment booking system — Google Calendar integration, Square/Venmo payments, SMS/email notifications, and client accounts.
- * Version:     1.3.3
+ * Version:     1.4.3
  * Author:      Caswell Therapy
  * License:     GPL-2.0+
  * Text Domain: caswell-booking
@@ -11,7 +11,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CASWELL_VERSION',    '1.3.3' );
+define( 'CASWELL_VERSION',    '1.4.3' );
 define( 'CASWELL_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CASWELL_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'CASWELL_PLUGIN_FILE', __FILE__ );
@@ -267,4 +267,65 @@ function caswell_decrypt( $value ) {
     $iv     = substr( $raw, 0, $iv_len );
     $enc    = substr( $raw, $iv_len );
     return openssl_decrypt( $enc, 'aes-256-cbc', $key, 0, $iv );
+}
+
+/**
+ * HMAC-signed self-service token for a booking. Allows clients to access
+ * a "manage your booking" link from confirmation emails without logging in.
+ *
+ * The token is bound to the booking's id + email — both immutable for the
+ * life of the row. So the link stays valid even after the booking is
+ * rescheduled (start_datetime changes).
+ */
+function caswell_booking_manage_token( $booking ) {
+    if ( ! is_object( $booking ) || empty( $booking->id ) ) return '';
+    $payload = $booking->id . '|' . strtolower( (string) $booking->email );
+    return substr( hash_hmac( 'sha256', $payload, AUTH_KEY ), 0, 32 );
+}
+
+function caswell_verify_booking_manage_token( $booking, $token ) {
+    if ( ! is_object( $booking ) || empty( $token ) ) return false;
+    return hash_equals( caswell_booking_manage_token( $booking ), (string) $token );
+}
+
+function caswell_booking_action_url( $booking, $action ) {
+    if ( ! is_object( $booking ) ) return '';
+    $base = get_option( 'caswell_booking_page_id' )
+        ? get_permalink( (int) get_option( 'caswell_booking_page_id' ) )
+        : home_url( '/book/' );
+    return add_query_arg( [
+        'caswell_action' => $action,
+        'b' => $booking->id,
+        't' => caswell_booking_manage_token( $booking ),
+    ], $base );
+}
+
+function caswell_booking_reschedule_url( $booking ) {
+    return caswell_booking_action_url( $booking, 'reschedule' );
+}
+
+function caswell_booking_cancel_url( $booking ) {
+    return caswell_booking_action_url( $booking, 'cancel' );
+}
+
+/**
+ * Render a Google Calendar event title from a template. Supports placeholders:
+ *   {practitioner}   — the practitioner_name setting
+ *   {client}         — full client name as entered on the form
+ *   {client_first}   — first whitespace-delimited token of the client name
+ *   {duration}       — session length in minutes
+ *   {service}        — service_type setting
+ */
+function caswell_render_event_title( $template, $client_name, $session_length, $service = '' ) {
+    $practitioner   = caswell_get_option( 'practitioner_name', 'Appointment' );
+    $service        = $service ?: caswell_get_option( 'service_type', 'appointment' );
+    $client_name    = (string) $client_name;
+    $client_first   = strtok( trim( $client_name ), " \t" );
+    if ( $client_first === false ) $client_first = $client_name;
+
+    return str_replace(
+        [ '{practitioner}', '{client_first}', '{client}', '{duration}', '{service}' ],
+        [ $practitioner,    $client_first,    $client_name, (int) $session_length, $service ],
+        (string) $template
+    );
 }
