@@ -24,9 +24,7 @@ Personal calendar events, existing bookings, and admin time blocks always subtra
 
 **Personal calendar transparency:** events on the personal calendar marked **Free** (Google Calendar's "Show me as: Free", `transparency=transparent` in the API) are skipped — they do **not** block bookings. Use this to put informational items on your calendar (reminders, all-day flags, travel dates kept "Free") without taking yourself off the booking grid.
 
-**Shared-calendar blocking events:** in addition to "Glow" events that open availability, events on the *shared* calendar whose title or description contains the **blocking keyword** (default `Terry`, configurable in Settings → Availability) are treated as busy blocks — exactly like personal-calendar events. Use this for items on the shared calendar that represent another practitioner's booking (e.g., Terry using the room) so that Ryan's bookings don't double-book the space. Blocking takes precedence: if an event somehow matches both keywords, it blocks. Leave the field blank to disable.
-
-These shared-calendar blocks are also **padded by `buffer_time` minutes** on each side, so new appointments can't be booked right up against another practitioner's event. The same buffer applies to Ryan's own consecutive slots.
+**Shared-calendar blocking events:** every event on the shared calendar that is *not* a Glow event is treated as a busy block. This includes "Terry", "Christy 90 Brandon", and any arbitrary studio events. Padded by `buffer_time` minutes on each side so new appointments can't be booked right up against another practitioner's event. Events marked "Show me as: Free" (transparency=transparent) are exempt — use that for informational items that shouldn't block. The legacy `blocking_keyword` setting still exists for visibility but no longer changes behavior.
 
 ## Booking → Calendar Sync
 

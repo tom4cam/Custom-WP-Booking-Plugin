@@ -103,14 +103,15 @@ Consequences:
   to `{practitioner} Appointment — {client}`. Both support `{practitioner}`,
   `{client}`, `{client_first}`, `{client_short}` (first name + last initial),
   `{duration}`, `{service}`.
-- **Calendar keywords**: on the shared Google Calendar, events titled "Glow"
-  define available windows; events titled "Terry" (or whatever the blocking
-  keyword is set to) act as busy blocks like personal-calendar events.
-  Blocking events are padded by `buffer_time` on each side so new
-  appointments can't be booked right up against another practitioner's
-  event. Both keywords are configurable in Settings → Availability,
-  case-insensitive, matched in title or description. Blocking takes
-  precedence if an event somehow matches both.
+- **Shared-calendar event semantics**: events whose title or description
+  contains the Glow keyword (default "Glow", configurable in Settings →
+  Availability) define available windows for Ryan. **Every other event on
+  the shared calendar blocks availability** (padded by `buffer_time` on
+  each side) — that includes "Terry", "Christy 90 Brandon", and any other
+  practitioner's booking. Events marked "Show me as: Free" in Google
+  Calendar are skipped. The legacy `blocking_keyword` setting still exists
+  in settings but no longer drives behavior — it was made redundant by the
+  "non-Glow always blocks" rule.
 - **Page creation on activate**: `caswell_create_pages()` only creates pages
   if the `caswell_*_page_id` option is unset. If a user deletes a page, they
   must also clear the option to get it recreated.

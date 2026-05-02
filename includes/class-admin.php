@@ -98,6 +98,9 @@ class Caswell_Admin {
         // Notifications – SMS / Twilio
         $clean['twilio_account_sid']          = sanitize_text_field( $input['twilio_account_sid'] ?? '' );
         $clean['twilio_from_phone']           = sanitize_text_field( $input['twilio_from_phone'] ?? '' );
+        $clean['twilio_whatsapp_from']        = sanitize_text_field( $input['twilio_whatsapp_from'] ?? '' );
+        $channel = $input['notification_channel'] ?? 'sms';
+        $clean['notification_channel'] = in_array( $channel, [ 'sms', 'whatsapp', 'off' ], true ) ? $channel : 'sms';
         $clean['sms_confirmation_template']   = sanitize_textarea_field( $input['sms_confirmation_template'] ?? '' );
         $clean['sms_reminder_template']       = sanitize_textarea_field( $input['sms_reminder_template'] ?? '' );
 

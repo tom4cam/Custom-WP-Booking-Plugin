@@ -359,13 +359,16 @@ class Caswell_Booking_Handler {
         $price_key   = "venmo_price_{$session_length}";
         $venmo_price = caswell_get_option( $price_key );
 
-        // Whether SMS will actually be attempted: phone present AND Twilio
-        // creds configured. Used by the front-end so the confirmation message
-        // doesn't claim "an SMS was sent" when Twilio is disabled.
-        $sms_enabled = ! empty( $phone )
-            && caswell_get_option( 'twilio_account_sid' )
-            && caswell_get_option( 'twilio_auth_token' )
-            && caswell_get_option( 'twilio_from_phone' );
+        // Whether a text message (SMS or WhatsApp) will actually be attempted.
+        // Used by the front-end so the confirmation page doesn't falsely
+        // claim a message was sent when the relevant channel isn't set up.
+        $channel     = caswell_get_option( 'notification_channel', 'sms' );
+        $has_creds   = caswell_get_option( 'twilio_account_sid' )
+                    && caswell_get_option( 'twilio_auth_token' );
+        $has_sender  = ( $channel === 'whatsapp' )
+            ? (bool) caswell_get_option( 'twilio_whatsapp_from' )
+            : (bool) caswell_get_option( 'twilio_from_phone' );
+        $sms_enabled = ! empty( $phone ) && $channel !== 'off' && $has_creds && $has_sender;
 
         wp_send_json_success( [
             'booking_id'    => $booking_id,
@@ -376,6 +379,7 @@ class Caswell_Booking_Handler {
                 ? "venmo://paycharge?txn=pay&recipients={$venmo_user}&amount={$venmo_price}"
                 : '',
             'sms_sent'      => (bool) $sms_enabled,
+            'sms_channel'   => $sms_enabled ? $channel : '',
             'email_sent'    => (bool) $email_sent,
         ] );
     }

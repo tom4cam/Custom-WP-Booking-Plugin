@@ -279,10 +279,10 @@
     function showConfirmation(result) {
         var msg = 'Your appointment on ' + result.start_label + ' is confirmed. ';
         if (result.email_sent === false) {
-            // Server tried to email but wp_mail rejected it.
             msg += 'We could not send a confirmation email — please check your email address or contact us directly.';
         } else if (result.sms_sent) {
-            msg += 'A confirmation email and text message have been sent.';
+            var via = result.sms_channel === 'whatsapp' ? 'WhatsApp' : 'text message';
+            msg += 'A confirmation email and ' + via + ' have been sent.';
         } else {
             msg += 'A confirmation email has been sent.';
         }

@@ -140,18 +140,16 @@ class Caswell_Google_Calendar {
         $time_min = $day_start->format( DateTime::RFC3339 );
         $time_max = $day_end->format( DateTime::RFC3339 );
 
-        // 1. Walk shared calendar events. Each event is either:
-        //    - A blocking event (title/desc matches blocking_keyword) → busy block
-        //      (e.g. "Terry" events represent another therapist using the room)
-        //    - A Glow event (title/desc matches keyword) → adds an available window
-        //    - Neither → ignored
-        // Blocking takes precedence: if an event matches both keywords (unusual),
-        // it is treated as a block.
+        // 1. Walk shared calendar events. Each event is one of:
+        //    - A Glow event (title/desc matches `calendar_keyword`)
+        //      → adds an available window for Ryan
+        //    - Anything else (another practitioner's booking, e.g. "Christy
+        //      90 Brandon", "Terry", or arbitrary studio events)
+        //      → blocks availability for Ryan, padded by `buffer_time`
         //
-        // Blocking events are padded by `buffer_time` minutes on each side so
-        // a new appointment cannot be scheduled right up against an event
-        // belonging to another practitioner sharing the room. This mirrors
-        // the buffer between Ryan's own consecutive bookings.
+        // The legacy `blocking_keyword` setting is no longer used to decide
+        // *whether* an event blocks — every non-Glow event blocks now —
+        // but it remains in settings for forward compatibility / clarity.
         $shared_events  = $this->fetch_events( $shared_cal_id, $time_min, $time_max );
         $buffer_minutes = (int) caswell_get_option( 'buffer_time', 15 );
         $glow_windows   = [];
@@ -164,21 +162,28 @@ class Caswell_Google_Calendar {
             if ( ! $start || ! $end || $end <= $start ) {
                 continue;
             }
-            if ( $blocking_keyword !== ''
-                 && ( strpos( $title, $blocking_keyword ) !== false
-                      || strpos( $desc, $blocking_keyword ) !== false ) ) {
-                $padded_start = clone $start;
-                $padded_end   = clone $end;
-                if ( $buffer_minutes > 0 ) {
-                    $padded_start->modify( "-{$buffer_minutes} minutes" );
-                    $padded_end->modify( "+{$buffer_minutes} minutes" );
-                }
-                $shared_blocks[] = [ 'start' => $padded_start, 'end' => $padded_end ];
+            // Skip events the calendar owner explicitly marked as Free
+            // ("Show me as: Free"). Doesn't apply to all-day reminders or
+            // out-of-office labels — only events with transparency=transparent.
+            if ( ( $event['transparency'] ?? 'opaque' ) === 'transparent' ) {
                 continue;
             }
-            if ( strpos( $title, $keyword ) !== false || strpos( $desc, $keyword ) !== false ) {
+            $is_glow = ( $keyword !== '' && (
+                strpos( $title, $keyword ) !== false
+                || strpos( $desc, $keyword ) !== false
+            ) );
+            if ( $is_glow ) {
                 $glow_windows[] = [ 'start' => $start, 'end' => $end ];
+                continue;
             }
+            // Non-Glow event → blocking. Pad with buffer on both sides.
+            $padded_start = clone $start;
+            $padded_end   = clone $end;
+            if ( $buffer_minutes > 0 ) {
+                $padded_start->modify( "-{$buffer_minutes} minutes" );
+                $padded_end->modify( "+{$buffer_minutes} minutes" );
+            }
+            $shared_blocks[] = [ 'start' => $padded_start, 'end' => $padded_end ];
         }
 
         // 2. Weekly schedule (admin override). When a day is explicitly enabled in

@@ -343,6 +343,27 @@
                     <td><input type="text" id="twilio_from" name="caswell_settings[twilio_from_phone]" value="<?php echo esc_attr( $o['twilio_from_phone'] ?? '' ); ?>" class="regular-text" placeholder="+15005550006" /></td>
                 </tr>
                 <tr>
+                    <th><label for="notification_channel">Send messages via</label></th>
+                    <td>
+                        <select id="notification_channel" name="caswell_settings[notification_channel]">
+                            <?php $ch = $o['notification_channel'] ?? 'sms'; ?>
+                            <option value="sms"      <?php selected( $ch, 'sms' ); ?>>SMS / text message (default)</option>
+                            <option value="whatsapp" <?php selected( $ch, 'whatsapp' ); ?>>WhatsApp (via Twilio)</option>
+                            <option value="off"      <?php selected( $ch, 'off' ); ?>>Off — email-only</option>
+                        </select>
+                        <p class="description">
+                            <strong>WhatsApp:</strong> requires a Twilio account with an approved WhatsApp sender. For testing, Twilio offers a free sandbox at <a href="https://www.twilio.com/console/sms/whatsapp/sandbox" target="_blank">twilio.com/console/sms/whatsapp/sandbox</a> — clients must opt in by texting a join code to the sandbox number. For production, your Twilio account needs a registered WhatsApp Business sender and approved templates for confirmations/reminders. <strong>Square does not offer general-purpose SMS</strong> (only payment-related receipts), so it isn't an option here.
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="twilio_whatsapp_from">WhatsApp Sender</label></th>
+                    <td>
+                        <input type="text" id="twilio_whatsapp_from" name="caswell_settings[twilio_whatsapp_from]" value="<?php echo esc_attr( $o['twilio_whatsapp_from'] ?? '' ); ?>" class="regular-text" placeholder="+14155238886" />
+                        <p class="description">Only used when channel is set to WhatsApp. Twilio sandbox number is <code>+14155238886</code>. Enter the bare phone number — the plugin adds the <code>whatsapp:</code> prefix automatically.</p>
+                    </td>
+                </tr>
+                <tr>
                     <th><label for="sms_conf">Confirmation Template</label></th>
                     <td><textarea id="sms_conf" name="caswell_settings[sms_confirmation_template]" rows="3" class="large-text"><?php echo esc_textarea( $o['sms_confirmation_template'] ?? '' ); ?></textarea></td>
                 </tr>
@@ -855,16 +876,40 @@
 (function(){
     var tabs = document.querySelectorAll('.caswell-tab');
     var contents = document.querySelectorAll('.caswell-tab-content');
+
+    function activateTab(targetId) {
+        var contentEl = document.getElementById(targetId);
+        if (!contentEl) return false;
+        tabs.forEach(function(t){ t.classList.remove('active'); });
+        contents.forEach(function(c){ c.classList.remove('active'); });
+        var matchingTab = document.querySelector('.caswell-tab[href="#' + targetId + '"]');
+        if (matchingTab) matchingTab.classList.add('active');
+        contentEl.classList.add('active');
+        return true;
+    }
+
     tabs.forEach(function(tab){
         tab.addEventListener('click', function(e){
             e.preventDefault();
             var target = this.getAttribute('href').replace('#','');
-            tabs.forEach(function(t){ t.classList.remove('active'); });
-            contents.forEach(function(c){ c.classList.remove('active'); });
-            this.classList.add('active');
-            document.getElementById(target).classList.add('active');
+            if (activateTab(target)) {
+                // Sync the URL hash so a page reload (e.g. after a booking
+                // action AJAXes back and the JS calls location.reload())
+                // returns the user to the same tab they were on.
+                if (history && history.replaceState) {
+                    history.replaceState(null, '', '#' + target);
+                } else {
+                    window.location.hash = target;
+                }
+            }
         });
     });
+
+    // On initial load, honor the hash if present so reloads keep the tab.
+    if (window.location.hash) {
+        var initial = window.location.hash.replace('#','');
+        activateTab(initial);
+    }
 })();
 
 // Time blocks AJAX

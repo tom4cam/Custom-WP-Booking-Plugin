@@ -247,19 +247,48 @@ class Caswell_Notifications {
     }
 
     /**
-     * Low-level Twilio SMS send with error handling and logging.
+     * Low-level Twilio send. Routes through the configured channel:
+     *   - 'sms'      → standard SMS via the From phone number
+     *   - 'whatsapp' → WhatsApp via the WhatsApp sender (requires approved
+     *                  Twilio WhatsApp sender or sandbox opt-in)
+     *   - 'off'      → no-op (returns false; caller handles email-only fallback)
+     *
+     * Twilio's API endpoint is the same for both channels — the difference
+     * is the `whatsapp:` prefix on From and To.
      *
      * @param string $to      E.164 phone number
-     * @param string $message SMS body
+     * @param string $message Message body
      * @return bool           True on success
      */
     private function send_raw_sms( $to, $message ) {
+        $channel = caswell_get_option( 'notification_channel', 'sms' );
+        if ( $channel === 'off' ) {
+            return false;
+        }
+
         $account_sid = caswell_get_option( 'twilio_account_sid' );
         $auth_token  = caswell_decrypt( caswell_get_option( 'twilio_auth_token' ) );
-        $from_phone  = caswell_get_option( 'twilio_from_phone' );
 
-        if ( ! $account_sid || ! $auth_token || ! $from_phone ) {
+        if ( ! $account_sid || ! $auth_token ) {
             return false;
+        }
+
+        if ( $channel === 'whatsapp' ) {
+            $from_raw = caswell_get_option( 'twilio_whatsapp_from' );
+            if ( ! $from_raw ) {
+                caswell_log( 'twilio', 'WhatsApp channel selected but twilio_whatsapp_from is empty' );
+                return false;
+            }
+            // Strip any whatsapp: prefix the admin may have entered, then re-add.
+            $from = 'whatsapp:' . preg_replace( '/^whatsapp:/i', '', trim( $from_raw ) );
+            $to_  = 'whatsapp:' . preg_replace( '/^whatsapp:/i', '', trim( $to ) );
+            $kind = 'whatsapp';
+        } else {
+            $from_phone = caswell_get_option( 'twilio_from_phone' );
+            if ( ! $from_phone ) return false;
+            $from = $from_phone;
+            $to_  = $to;
+            $kind = 'sms';
         }
 
         $url = "https://api.twilio.com/2010-04-01/Accounts/{$account_sid}/Messages.json";
@@ -270,15 +299,15 @@ class Caswell_Notifications {
                 'Authorization' => 'Basic ' . base64_encode( "{$account_sid}:{$auth_token}" ),
             ],
             'body' => [
-                'From' => $from_phone,
-                'To'   => $to,
+                'From' => $from,
+                'To'   => $to_,
                 'Body' => $message,
             ],
         ] );
 
         if ( is_wp_error( $response ) ) {
-            caswell_log( 'twilio', 'SMS request failed: ' . $response->get_error_message(), [
-                'to' => $to,
+            caswell_log( 'twilio', "{$kind} request failed: " . $response->get_error_message(), [
+                'to' => $to_,
             ] );
             return false;
         }
@@ -286,15 +315,15 @@ class Caswell_Notifications {
         $status_code = wp_remote_retrieve_response_code( $response );
         if ( $status_code < 200 || $status_code >= 300 ) {
             $body = json_decode( wp_remote_retrieve_body( $response ), true );
-            caswell_log( 'twilio', "SMS failed with HTTP {$status_code}", [
-                'to'    => $to,
+            caswell_log( 'twilio', "{$kind} failed with HTTP {$status_code}", [
+                'to'    => $to_,
                 'error' => $body['message'] ?? 'Unknown error',
                 'code'  => $body['code'] ?? '',
             ] );
             return false;
         }
 
-        caswell_log( 'twilio', "SMS sent to {$to}" );
+        caswell_log( 'twilio', "{$kind} sent to {$to_}" );
         return true;
     }
 
