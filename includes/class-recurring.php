@@ -3,7 +3,13 @@ defined( 'ABSPATH' ) || exit;
 
 class Caswell_Recurring {
 
-    const MAX_OCCURRENCES = 52;
+    /**
+     * Hard cap on a single recurring series. The booking page enforces this
+     * client-side as well, so a request that arrives with more is either
+     * spoofed or stale; in either case we silently cap to 12 and surface
+     * the cap to the client via the `capped` flag in create_series's return.
+     */
+    const MAX_OCCURRENCES = 12;
 
     /**
      * Generate all occurrence datetimes for a series starting at $start_ts.

@@ -64,13 +64,27 @@
             }
         });
 
-        // Recurring toggle
+        // Recurring toggle + live conflict check.
         $('#caswell-recurring-check').on('change', function () {
             if ($(this).is(':checked')) {
                 $('#caswell-recurring-options').slideDown(200);
+                checkRecurringAvailability();
             } else {
                 $('#caswell-recurring-options').slideUp(200);
+                $('#caswell-rec-conflicts').attr('hidden', true).empty();
             }
+        });
+
+        // Re-check on any field that changes the series shape.
+        $(document).on('input change', '#caswell-rec-freq, #caswell-rec-end, #caswell-rec-occ', function () {
+            // Clamp #caswell-rec-occ to [1, 12] live.
+            if (this.id === 'caswell-rec-occ') {
+                var v = parseInt(this.value, 10);
+                if (isNaN(v)) { /* leave for now */ }
+                else if (v > 12) this.value = 12;
+                else if (v < 1)  this.value = 1;
+            }
+            checkRecurringAvailability();
         });
 
         // Form submit
@@ -174,6 +188,12 @@
                 selectedEndTs   = slot.end_ts;
                 $('#caswell-selected-start-ts').val(slot.start_ts);
                 $('#caswell-selected-end-ts').val(slot.end_ts);
+                // Date/time just changed — clear stale conflicts and re-check
+                // if the user is in recurring mode.
+                $('#caswell-rec-conflicts').attr('hidden', true).empty();
+                if ($('#caswell-recurring-check').is(':checked')) {
+                    checkRecurringAvailability();
+                }
                 setTimeout(function () { showStep(3); }, 150);
             });
             $grid.append($btn);
@@ -463,6 +483,92 @@
             $('#caswell-auth-reset').show();
             $('.caswell-auth-tabs').hide();
         }
+    }
+
+    /* ── Recurring conflict preview ──────────────────────────────────── */
+
+    var recCheckTimer = null;
+    var recCheckSeq   = 0;
+
+    function checkRecurringAvailability() {
+        if (!$('#caswell-recurring-check').is(':checked')) return;
+        if (!selectedStartTs) return;
+
+        clearTimeout(recCheckTimer);
+        recCheckTimer = setTimeout(function () {
+            var $box = $('#caswell-rec-conflicts');
+            $box.removeClass('has-conflicts all-clear').addClass('is-loading')
+                .removeAttr('hidden')
+                .html('<span>Checking availability of each appointment…</span>');
+
+            var seq = ++recCheckSeq;
+            $.post(caswellData.ajax_url, {
+                action:         'caswell_check_recurring',
+                nonce:          caswellData.nonce,
+                start_ts:       selectedStartTs,
+                session_length: selectedLength,
+                frequency:      $('#caswell-rec-freq').val(),
+                occurrences:    $('#caswell-rec-occ').val() || 0,
+                end_date:       $('#caswell-rec-end').val()
+            }, function (response) {
+                // Drop stale responses if the user changed something
+                // between request and reply.
+                if (seq !== recCheckSeq) return;
+                renderRecurringResult($box, response);
+            }).fail(function () {
+                if (seq !== recCheckSeq) return;
+                $box.removeClass('is-loading').addClass('has-conflicts')
+                    .html('<strong>Could not check availability.</strong> Please try again.');
+            });
+        }, 250);
+    }
+
+    function renderRecurringResult($box, response) {
+        $box.removeClass('is-loading');
+
+        if (!response || !response.success) {
+            var msg = (response && response.data && typeof response.data === 'string')
+                ? response.data : 'Could not check availability.';
+            $box.addClass('has-conflicts').html('<strong>' + escHtml(msg) + '</strong>');
+            return;
+        }
+
+        var data = response.data;
+        var occs = data.occurrences || [];
+        if (!occs.length) {
+            $box.addClass('has-conflicts').html('<strong>No appointments would be created with these settings.</strong> Try a longer end date or more occurrences.');
+            return;
+        }
+
+        var conflicts = occs.filter(function (o) { return !o.available; });
+        var hasConflicts = conflicts.length > 0;
+
+        $box.toggleClass('has-conflicts', hasConflicts);
+        $box.toggleClass('all-clear', !hasConflicts);
+
+        var html = '';
+        if (hasConflicts) {
+            html += '<h5>' + conflicts.length + ' of ' + occs.length + ' appointments have conflicts</h5>';
+            html += '<p style="margin:0 0 6px">Please pick a different time, change the frequency, or reduce the count to a number that fits Ryan\'s availability.</p>';
+        } else {
+            html += '<h5>All ' + occs.length + ' appointments are available ✓</h5>';
+        }
+
+        html += '<ul>';
+        occs.forEach(function (o) {
+            var cls  = o.available ? 'is-available' : 'is-conflict';
+            var mark = o.available ? '✓' : '✗';
+            html += '<li class="' + cls + '"><span class="cas-mark">' + mark + '</span> '
+                  + escHtml(o.label) + (o.available ? '' : ' — not available')
+                  + '</li>';
+        });
+        html += '</ul>';
+
+        if (data.capped && data.cap_message) {
+            html += '<div class="cap-note">' + escHtml(data.cap_message) + '</div>';
+        }
+
+        $box.html(html);
     }
 
     /* ── Helpers ─────────────────────────────────────────────────────── */

@@ -142,14 +142,21 @@
                         </select>
                     </div>
                     <div class="caswell-field">
-                        <label for="caswell-rec-end">End Date (or)</label>
+                        <label for="caswell-rec-end">End Date <small>(optional)</small></label>
                         <input type="date" id="caswell-rec-end" name="rec_end_date" />
                     </div>
                 </div>
                 <div class="caswell-field" style="max-width:200px;">
-                    <label for="caswell-rec-occ">— or # of Occurrences</label>
-                    <input type="number" id="caswell-rec-occ" name="rec_occurrences" min="1" max="52" placeholder="e.g. 12" />
+                    <label for="caswell-rec-occ"># of Appointments <small>(max 12)</small></label>
+                    <input type="number" id="caswell-rec-occ" name="rec_occurrences" min="1" max="12" value="12" />
                 </div>
+                <p class="caswell-recurring-help" style="margin:6px 0 0;font-size:0.86rem;color:#666">
+                    Recurring bookings are limited to 12 appointments at a time. To go further, book another series after the last one.
+                </p>
+
+                <!-- Live conflict check — populated by booking.js whenever
+                     date / time / length / frequency / count / end-date change. -->
+                <div id="caswell-rec-conflicts" class="caswell-rec-conflicts" hidden></div>
             </div>
 
             <!-- Payment method -->

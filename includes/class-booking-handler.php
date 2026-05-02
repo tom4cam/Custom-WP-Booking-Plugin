@@ -8,6 +8,8 @@ class Caswell_Booking_Handler {
         add_action( 'wp_ajax_nopriv_caswell_get_slots', [ $this, 'ajax_get_slots' ] );
         add_action( 'wp_ajax_caswell_submit_booking',        [ $this, 'ajax_submit_booking' ] );
         add_action( 'wp_ajax_nopriv_caswell_submit_booking', [ $this, 'ajax_submit_booking' ] );
+        add_action( 'wp_ajax_caswell_check_recurring',        [ $this, 'ajax_check_recurring' ] );
+        add_action( 'wp_ajax_nopriv_caswell_check_recurring', [ $this, 'ajax_check_recurring' ] );
         add_action( 'wp_ajax_caswell_cancel_booking',        [ $this, 'ajax_cancel_booking' ] );
         add_action( 'wp_ajax_nopriv_caswell_cancel_booking', [ $this, 'ajax_cancel_booking' ] );
         add_action( 'wp_ajax_caswell_cancel_series',         [ $this, 'ajax_cancel_series' ] );
@@ -381,6 +383,93 @@ class Caswell_Booking_Handler {
             'sms_sent'      => (bool) $sms_enabled,
             'sms_channel'   => $sms_enabled ? $channel : '',
             'email_sent'    => (bool) $email_sent,
+        ] );
+    }
+
+    /* ── AJAX: Preview recurring occurrences + per-occurrence availability ─
+     *
+     * Inputs (POST):
+     *   start_ts        Unix timestamp of the first occurrence
+     *   session_length  minutes
+     *   frequency       weekly | biweekly | monthly
+     *   occurrences     int (0 = use end_date)
+     *   end_date        Y-m-d (optional)
+     *
+     * Returns:
+     *   total           Number of occurrences in the series after cap
+     *   capped          true if MAX_OCCURRENCES kicked in
+     *   cap_message     Human-readable explanation when capped (or empty)
+     *   occurrences     Array of { ts, date, time, label, available }
+     */
+    public function ajax_check_recurring() {
+        check_ajax_referer( 'caswell_booking_nonce', 'nonce' );
+
+        $start_ts       = absint( $_POST['start_ts'] ?? 0 );
+        $session_length = absint( $_POST['session_length'] ?? 60 );
+        $frequency      = sanitize_text_field( $_POST['frequency'] ?? 'weekly' );
+        $occurrences    = absint( $_POST['occurrences'] ?? 0 );
+        $end_date       = sanitize_text_field( $_POST['end_date'] ?? '' );
+
+        if ( ! $start_ts || $session_length < 15 ) {
+            wp_send_json_error( 'Pick a date and time first.' );
+        }
+        if ( ! in_array( $frequency, [ 'weekly', 'biweekly', 'monthly' ], true ) ) {
+            wp_send_json_error( 'Invalid frequency.' );
+        }
+        if ( $end_date && ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $end_date ) ) {
+            wp_send_json_error( 'Invalid end date.' );
+        }
+        if ( ! $occurrences && ! $end_date ) {
+            // The form should default to 12, but if both are empty, do that
+            // here so the response is still useful.
+            $occurrences = Caswell_Recurring::MAX_OCCURRENCES;
+        }
+
+        // Detect whether the cap will affect what the user asked for.
+        $requested = $occurrences;
+        $capped    = false;
+        $cap_msg   = '';
+        if ( $occurrences > Caswell_Recurring::MAX_OCCURRENCES ) {
+            $capped  = true;
+            $cap_msg = sprintf(
+                'You asked for %d appointments — booking is capped at %d at a time.',
+                $occurrences, Caswell_Recurring::MAX_OCCURRENCES
+            );
+        }
+
+        $rec   = new Caswell_Recurring();
+        $dates = $rec->generate_occurrences( $start_ts, $frequency, $end_date, $occurrences );
+
+        // If end_date alone yielded more than the cap, generate_occurrences
+        // would have stopped at the cap — flag it so the user knows.
+        if ( ! $capped && ! $requested && $end_date && count( $dates ) >= Caswell_Recurring::MAX_OCCURRENCES ) {
+            $capped  = true;
+            $cap_msg = sprintf(
+                'Your end date allows more, but recurring bookings are capped at %d at a time.',
+                Caswell_Recurring::MAX_OCCURRENCES
+            );
+        }
+
+        $gcal     = new Caswell_Google_Calendar();
+        $payload  = [];
+        $now      = time();
+        foreach ( $dates as $dt ) {
+            $ts        = $dt->getTimestamp();
+            $available = ( $ts > $now ) && $gcal->is_slot_available( $ts, $session_length );
+            $payload[] = [
+                'ts'        => $ts,
+                'date'      => $dt->format( 'Y-m-d' ),
+                'time'      => $dt->format( 'H:i' ),
+                'label'     => wp_date( 'l, M j, Y', $ts ) . ' at ' . wp_date( 'g:i A', $ts ),
+                'available' => $available,
+            ];
+        }
+
+        wp_send_json_success( [
+            'total'       => count( $payload ),
+            'capped'      => $capped,
+            'cap_message' => $cap_msg,
+            'occurrences' => $payload,
         ] );
     }
 
