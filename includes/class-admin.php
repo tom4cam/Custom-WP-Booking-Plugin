@@ -64,10 +64,24 @@ class Caswell_Admin {
         $clean['blocking_keyword']     = sanitize_text_field( $input['blocking_keyword'] ?? 'Terry' );
 
         // Session lengths
-        foreach ( [ 30, 60, 90 ] as $len ) {
+        foreach ( caswell_session_length_options() as $len ) {
             $clean[ "enable_{$len}min" ] = ! empty( $input[ "enable_{$len}min" ] ) ? 1 : 0;
         }
-        $clean['default_session_length'] = absint( $input['default_session_length'] ?? 60 );
+
+        // Default length: if the admin picked a default that's not in the
+        // enabled set after this save (e.g. unchecked their current default),
+        // silently fall back to the lowest enabled length. caswell_resolve_default_length()
+        // is unit-tested.
+        $enabled_now = [];
+        foreach ( caswell_session_length_options() as $len ) {
+            if ( ! empty( $clean[ "enable_{$len}min" ] ) ) {
+                $enabled_now[] = $len;
+            }
+        }
+        $clean['default_session_length'] = caswell_resolve_default_length(
+            $input['default_session_length'] ?? 60,
+            $enabled_now
+        );
 
         // Square — encrypt secrets
         $clean['square_application_id'] = sanitize_text_field( $input['square_application_id'] ?? '' );
@@ -83,7 +97,7 @@ class Caswell_Admin {
 
         // Venmo
         $clean['venmo_username']   = sanitize_text_field( $input['venmo_username'] ?? '' );
-        foreach ( [ 30, 60, 90 ] as $len ) {
+        foreach ( caswell_session_length_options() as $len ) {
             $clean[ "venmo_price_{$len}" ] = sanitize_text_field( $input[ "venmo_price_{$len}" ] ?? '' );
         }
 
@@ -157,7 +171,7 @@ class Caswell_Admin {
         $clean['buffer_time'] = absint( $input['buffer_time'] ?? 15 );
         // Warn if buffer >= smallest enabled session length
         $smallest_enabled = PHP_INT_MAX;
-        foreach ( [ 30, 60, 90 ] as $len ) {
+        foreach ( caswell_session_length_options() as $len ) {
             if ( ! empty( $clean[ "enable_{$len}min" ] ) ) {
                 $smallest_enabled = min( $smallest_enabled, $len );
             }
@@ -173,7 +187,7 @@ class Caswell_Admin {
         $clean['enable_sms_reminder']   = ! empty( $input['enable_sms_reminder'] ) ? 1 : 0;
 
         // Services / Pricing (for homepage)
-        foreach ( [ 30, 60, 90 ] as $len ) {
+        foreach ( caswell_session_length_options() as $len ) {
             $clean[ "service_price_{$len}" ]       = sanitize_text_field( $input[ "service_price_{$len}" ] ?? '' );
             $clean[ "service_description_{$len}" ] = sanitize_textarea_field( $input[ "service_description_{$len}" ] ?? '' );
         }
