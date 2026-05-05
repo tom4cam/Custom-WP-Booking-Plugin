@@ -96,7 +96,7 @@
         <!-- ── Session Lengths ────────────────────────────────────────── -->
         <div id="tab-sessions" class="caswell-tab-content">
             <h2>Session Lengths</h2>
-            <p class="description">Check each session length you want to offer. Enabling a length here makes its Pricing and Venmo/Square rows appear in the Branding and Payments tabs.</p>
+            <p class="description">Check each session length you want to offer. Enabling a length here makes its Pricing and Venmo/Square rows appear in the Business Info and Venmo tabs.</p>
             <table class="form-table">
                 <tr>
                     <th>Enabled Lengths</th>
