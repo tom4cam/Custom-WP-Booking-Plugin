@@ -171,16 +171,21 @@ jobs:
         run: vendor/bin/phpunit --colors=always
 ```
 
-- [ ] **Step 7: Install dependencies and run the smoke test**
-
-Run:
+- [ ] **Step 7: Install dependencies, mark vendor/ as Dropbox-ignored, run the smoke test**
 
 ```bash
 composer install --no-interaction
+xattr -w com.dropbox.ignored 1 vendor
 vendor/bin/phpunit --testsuite Unit
 ```
 
-Expected last line: `OK (1 test, 1 assertion)`.
+The `xattr` line is a macOS-specific Dropbox feature that prevents the
+50–100 MB of Composer dev dependencies from syncing to Dropbox. It's a
+local file attribute — it doesn't affect git, doesn't get committed, and
+doesn't appear anywhere in the repo. Without it, `vendor/` would sync to
+Dropbox even though git ignores it. Reference: <https://help.dropbox.com/sync/ignored-files>.
+
+Expected last line of the PHPUnit output: `OK (1 test, 1 assertion)`.
 
 If `composer` isn't installed, fail the task and ask Tom to install it (`brew install composer` on macOS).
 
