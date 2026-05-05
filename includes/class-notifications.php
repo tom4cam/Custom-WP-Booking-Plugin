@@ -227,21 +227,24 @@ class Caswell_Notifications {
             'from'       => $from_email_for_log,
         ] );
 
-        // Also notify admin — but skip if the admin email is the same address
-        // as the client's, otherwise testing as Ryan-as-client lands two
-        // confirmations in the same inbox.
-        $admin_email = get_bloginfo( 'admin_email' );
-        $same_inbox  = $admin_email && strcasecmp( trim( $admin_email ), trim( $booking->email ) ) === 0;
-        if ( 'confirmation' === $type && ! $same_inbox ) {
-            $admin_sent = wp_mail(
-                $admin_email,
-                "[New Booking] {$booking->name} — " . wp_date( 'M j, Y g:i A', caswell_local_ts( $booking->start_datetime ) ),
-                $html,
-                $headers
-            );
-            caswell_log( 'email', $admin_sent ? 'Sent admin alert email' : 'FAILED to send admin alert email', [
-                'admin_email' => $admin_email,
-            ] );
+        // Also notify the owner — but only on confirmations, only if the
+        // owner-email toggle is on, and skipped when the owner address is
+        // the same as the client's (e.g. Ryan booking himself for testing).
+        // Empty owner_notify_email_address falls back to the WP admin email.
+        if ( 'confirmation' === $type && caswell_get_option( 'owner_notify_email', 1 ) ) {
+            $owner_email = caswell_get_option( 'owner_notify_email_address', '' ) ?: get_bloginfo( 'admin_email' );
+            $same_inbox  = $owner_email && strcasecmp( trim( $owner_email ), trim( $booking->email ) ) === 0;
+            if ( ! $same_inbox ) {
+                $owner_sent = wp_mail(
+                    $owner_email,
+                    "[New Booking] {$booking->name} — " . wp_date( 'M j, Y g:i A', caswell_local_ts( $booking->start_datetime ) ),
+                    $html,
+                    $headers
+                );
+                caswell_log( 'email', $owner_sent ? 'Sent owner alert email' : 'FAILED to send owner alert email', [
+                    'owner_email' => $owner_email,
+                ] );
+            }
         }
 
         return (bool) $sent;
