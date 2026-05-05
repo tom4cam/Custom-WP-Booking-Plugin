@@ -30,6 +30,8 @@ Personal calendar events, existing bookings, and admin time blocks always subtra
 
 When a booking is confirmed, an event is created on **two** calendars: the OAuth user's `primary` calendar and the configured shared calendar. Both event IDs are stored in `wp_caswell_bookings` (`gcal_primary_event_id`, `gcal_shared_event_id`).
 
+All events the plugin writes to the shared calendar use Google Calendar's **Peacock** color (event `colorId` 7) so Ryan's bookings are visually distinct from other practitioners' events. The color is set on creation; reschedules preserve it. To change the color, edit `CASWELL_SHARED_EVENT_COLOR_ID` in `caswell-booking.php` (Google Calendar's palette is `'1'`–`'11'`).
+
 When a booking is cancelled (via the cancel link, the WP admin Bookings page, or the public account page), the plugin deletes the matching events from both calendars.
 
 An hourly cron (`caswell_sync_shared_calendar`) detects shared-calendar events that were deleted manually outside the plugin (e.g., from Ryan's Google Calendar UI). For each missing event, the plugin marks the booking cancelled, deletes the primary-calendar copy, and triggers the standard cancellation notifications to the client and the owner.
