@@ -169,19 +169,6 @@ class Caswell_Admin {
 
         // Scheduling
         $clean['buffer_time'] = absint( $input['buffer_time'] ?? 15 );
-        // Warn if buffer >= smallest enabled session length
-        $smallest_enabled = PHP_INT_MAX;
-        foreach ( caswell_session_length_options() as $len ) {
-            if ( ! empty( $clean[ "enable_{$len}min" ] ) ) {
-                $smallest_enabled = min( $smallest_enabled, $len );
-            }
-        }
-        if ( $smallest_enabled !== PHP_INT_MAX && $clean['buffer_time'] >= $smallest_enabled ) {
-            add_settings_error( 'caswell_settings', 'buffer_too_large',
-                "Buffer time ({$clean['buffer_time']} min) is >= your shortest session ({$smallest_enabled} min). No slots will be bookable for that length.",
-                'error'
-            );
-        }
         $clean['reminder_hours_before'] = absint( $input['reminder_hours_before'] ?? 24 );
         $clean['enable_email_reminder'] = ! empty( $input['enable_email_reminder'] ) ? 1 : 0;
         $clean['enable_sms_reminder']   = ! empty( $input['enable_sms_reminder'] ) ? 1 : 0;
