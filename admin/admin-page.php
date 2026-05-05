@@ -282,15 +282,19 @@
                     <th><label for="venmo_user">Venmo Username</label></th>
                     <td><input type="text" id="venmo_user" name="caswell_settings[venmo_username]" value="<?php echo esc_attr( $o['venmo_username'] ?? '' ); ?>" class="regular-text" placeholder="@username" /></td>
                 </tr>
-                <?php foreach ( [ 30, 60, 90 ] as $len ) : ?>
+                <?php $venmo_lens = caswell_enabled_session_lengths(); ?>
+                <?php if ( $venmo_lens ) : ?>
+                <tr><td colspan="2"><p class="description">One row per session length you've enabled. Add or remove lengths in the <strong>Sessions</strong> tab.</p></td></tr>
+                <?php foreach ( $venmo_lens as $len ) : ?>
                 <tr>
-                    <th><label>Price — <?php echo $len; ?> min</label></th>
+                    <th><label>Price — <?php echo (int) $len; ?> min</label></th>
                     <td>
                         <span>$</span>
-                        <input type="text" name="caswell_settings[venmo_price_<?php echo $len; ?>]" value="<?php echo esc_attr( $o[ "venmo_price_{$len}" ] ?? '' ); ?>" style="width:80px;" placeholder="0.00" />
+                        <input type="text" name="caswell_settings[venmo_price_<?php echo (int) $len; ?>]" value="<?php echo esc_attr( $o[ "venmo_price_{$len}" ] ?? '' ); ?>" style="width:80px;" placeholder="0.00" />
                     </td>
                 </tr>
                 <?php endforeach; ?>
+                <?php endif; ?>
             </table>
         </div>
 
@@ -513,15 +517,19 @@
                     <td><textarea id="biz_hours" name="caswell_settings[business_hours]" rows="4" class="large-text" placeholder="Mon–Fri: 9am–6pm&#10;Sat: 9am–3pm"><?php echo esc_textarea( $o['business_hours'] ?? '' ); ?></textarea></td>
                 </tr>
                 <tr><th colspan="2"><h3>Service Pricing</h3></th></tr>
-                <?php foreach ( [ 30, 60, 90 ] as $len ) : ?>
+                <?php $branding_lens = caswell_enabled_session_lengths(); ?>
+                <?php if ( $branding_lens ) : ?>
+                <tr><td colspan="2"><p class="description">One row per session length you've enabled. Add or remove lengths in the <strong>Sessions</strong> tab.</p></td></tr>
+                <?php foreach ( $branding_lens as $len ) : ?>
                 <tr>
-                    <th><?php echo $len; ?>-min Session</th>
+                    <th><?php echo (int) $len; ?>-min Session</th>
                     <td>
-                        Price: $<input type="text" name="caswell_settings[service_price_<?php echo $len; ?>]" value="<?php echo esc_attr( $o[ "service_price_{$len}" ] ?? '' ); ?>" style="width:80px;" placeholder="0" />
-                        &nbsp; Description: <input type="text" name="caswell_settings[service_description_<?php echo $len; ?>]" value="<?php echo esc_attr( $o[ "service_description_{$len}" ] ?? '' ); ?>" class="regular-text" />
+                        Price: $<input type="text" name="caswell_settings[service_price_<?php echo (int) $len; ?>]" value="<?php echo esc_attr( $o[ "service_price_{$len}" ] ?? '' ); ?>" style="width:80px;" placeholder="0" />
+                        &nbsp; Description: <input type="text" name="caswell_settings[service_description_<?php echo (int) $len; ?>]" value="<?php echo esc_attr( $o[ "service_description_{$len}" ] ?? '' ); ?>" class="regular-text" />
                     </td>
                 </tr>
                 <?php endforeach; ?>
+                <?php endif; ?>
             </table>
         </div>
 
