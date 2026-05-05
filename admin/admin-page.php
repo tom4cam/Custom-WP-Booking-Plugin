@@ -96,26 +96,33 @@
         <!-- ── Session Lengths ────────────────────────────────────────── -->
         <div id="tab-sessions" class="caswell-tab-content">
             <h2>Session Lengths</h2>
+            <p class="description">Check each session length you want to offer. Enabling a length here makes its Pricing and Venmo/Square rows appear in the Branding and Payments tabs.</p>
             <table class="form-table">
                 <tr>
                     <th>Enabled Lengths</th>
                     <td>
-                        <?php foreach ( [ 30, 60, 90 ] as $len ) : ?>
-                        <label style="margin-right:20px;">
-                            <input type="checkbox" name="caswell_settings[enable_<?php echo $len; ?>min]" value="1" <?php checked( ! empty( $o[ "enable_{$len}min" ] ) ); ?> />
-                            <?php echo $len; ?> minutes
-                        </label>
-                        <?php endforeach; ?>
+                        <div style="display:grid;grid-template-columns:repeat(4,max-content);column-gap:24px;row-gap:6px;">
+                            <?php foreach ( caswell_session_length_options() as $len ) : ?>
+                            <label>
+                                <input type="checkbox" name="caswell_settings[enable_<?php echo (int) $len; ?>min]" value="1" <?php checked( ! empty( $o[ "enable_{$len}min" ] ) ); ?> />
+                                <?php echo (int) $len; ?> minutes
+                            </label>
+                            <?php endforeach; ?>
+                        </div>
                     </td>
                 </tr>
                 <tr>
                     <th><label for="default_length">Default Session Length</label></th>
                     <td>
                         <select id="default_length" name="caswell_settings[default_session_length]">
-                            <?php foreach ( [ 30, 60, 90 ] as $len ) : ?>
-                            <option value="<?php echo $len; ?>" <?php selected( (int) ( $o['default_session_length'] ?? 60 ), $len ); ?>><?php echo $len; ?> min</option>
+                            <?php
+                            $current_default = (int) ( $o['default_session_length'] ?? 60 );
+                            foreach ( caswell_enabled_session_lengths() as $len ) :
+                            ?>
+                            <option value="<?php echo (int) $len; ?>" <?php selected( $current_default, $len ); ?>><?php echo (int) $len; ?> min</option>
                             <?php endforeach; ?>
                         </select>
+                        <p class="description">Only currently-enabled lengths appear here. If you change the enabled set, save the page and the dropdown will update.</p>
                     </td>
                 </tr>
             </table>
