@@ -12,6 +12,7 @@
 defined( 'ABSPATH' ) || exit;
 
 define( 'CASWELL_VERSION',    '1.4.10' );
+define( 'CASWELL_SHARED_EVENT_COLOR_ID', '7' ); // Peacock — Google Calendar event color
 define( 'CASWELL_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CASWELL_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'CASWELL_PLUGIN_FILE', __FILE__ );
