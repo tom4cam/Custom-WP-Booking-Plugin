@@ -29,6 +29,7 @@ foreach ( [
 ] as $file ) {
     require_once CASWELL_PLUGIN_DIR . "includes/{$file}.php";
 }
+require_once CASWELL_PLUGIN_DIR . 'includes/session-lengths.php';
 
 /* ── Activation / Deactivation ─────────────────────────────────────────── */
 register_activation_hook( __FILE__, 'caswell_activate' );
@@ -218,17 +219,6 @@ function caswell_business_address_html() {
     $addr = caswell_business_address();
     if ( '' === $addr ) return '';
     return nl2br( esc_html( $addr ) );
-}
-
-function caswell_enabled_session_lengths() {
-    $lengths  = [];
-    $options  = get_option( 'caswell_settings', [] );
-    foreach ( [ 30, 60, 90 ] as $len ) {
-        if ( ! empty( $options[ "enable_{$len}min" ] ) ) {
-            $lengths[] = $len;
-        }
-    }
-    return $lengths ?: [ 60 ];
 }
 
 /**
