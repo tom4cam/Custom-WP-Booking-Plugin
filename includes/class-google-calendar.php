@@ -375,9 +375,10 @@ class Caswell_Google_Calendar {
      * @param DateTime $start
      * @param DateTime $end
      * @param string   $description
+     * @param string   $color_id     Optional Google Calendar colorId ('1'–'11'). Empty = no override.
      * @return string|false  Event ID on success, false on failure
      */
-    public function create_event( $calendar_id, $title, DateTime $start, DateTime $end, $description = '' ) {
+    public function create_event( $calendar_id, $title, DateTime $start, DateTime $end, $description = '', $color_id = '' ) {
         $token = $this->get_access_token();
         if ( ! $token ) return false;
 
@@ -389,6 +390,9 @@ class Caswell_Google_Calendar {
             'start'       => [ 'dateTime' => $start->format( DateTime::RFC3339 ), 'timeZone' => $tz_string ],
             'end'         => [ 'dateTime' => $end->format( DateTime::RFC3339 ),   'timeZone' => $tz_string ],
         ];
+        if ( '' !== (string) $color_id ) {
+            $body['colorId'] = (string) $color_id;
+        }
 
         $response = wp_remote_post( $url, [
             'timeout' => 15,
@@ -509,7 +513,8 @@ class Caswell_Google_Calendar {
             'Caswell Booking — calendar write test (delete me if you see this)',
             $start,
             $end,
-            "This is a one-off diagnostic event created by the plugin to verify\nthat the OAuth user has 'Make changes to events' permission on this\nshared calendar. It will be deleted automatically a moment after creation."
+            "This is a one-off diagnostic event created by the plugin to verify\nthat the OAuth user has 'Make changes to events' permission on this\nshared calendar. It will be deleted automatically a moment after creation.",
+            CASWELL_SHARED_EVENT_COLOR_ID
         );
 
         if ( ! $event_id ) {
