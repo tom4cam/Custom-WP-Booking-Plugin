@@ -31,3 +31,7 @@ IMG_*.jpg
 IMG_*.JPG
 IMG_*.png
 IMG_*.PNG
+
+# Composer / PHPUnit
+/vendor/
+.phpunit.result.cache
