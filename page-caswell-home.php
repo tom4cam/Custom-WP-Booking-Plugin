@@ -93,15 +93,9 @@ body { margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system,
     <h2 style="text-align:center;color:#4a7c6f;font-size:1.9rem;margin:0 0 48px;">Services &amp; Pricing</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:28px;">
         <?php
-        $sessions = [
-            30 => [ 'label' => '30-Minute', 'desc' => 'Focused treatment targeting specific areas of tension.' ],
-            60 => [ 'label' => '60-Minute', 'desc' => 'Full-body therapeutic massage for relaxation and relief.' ],
-            90 => [ 'label' => '90-Minute', 'desc' => 'Extended deep work with extra attention to problem areas.' ],
-        ];
-        foreach ( $sessions as $len => $cfg ) :
-            if ( empty( $o["enable_{$len}min"] ) ) continue;
+        foreach ( caswell_enabled_session_lengths() as $len ) :
             $price = $o["service_price_{$len}"] ?? '';
-            $desc  = $o["service_description_{$len}"] ?? $cfg['desc'];
+            $desc  = trim( (string) ( $o["service_description_{$len}"] ?? '' ) );
         ?>
         <div style="
             background:#fff;border:1px solid #e0e0da;border-radius:10px;
@@ -109,9 +103,11 @@ body { margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system,
             box-shadow:0 2px 14px rgba(0,0,0,0.07);
             transition:transform 0.2s;
         " onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform=''">
-            <div style="font-size:2.2rem;font-weight:700;color:#4a7c6f;"><?php echo $len; ?> <span style="font-size:1rem;font-weight:400;">min</span></div>
+            <div style="font-size:2.2rem;font-weight:700;color:#4a7c6f;"><?php echo (int) $len; ?> <span style="font-size:1rem;font-weight:400;">min</span></div>
             <div style="font-size:1.5rem;font-weight:600;margin:10px 0 6px;"><?php echo $price ? '$' . esc_html($price) : 'Contact for pricing'; ?></div>
+            <?php if ( $desc !== '' ) : ?>
             <p style="color:#666;font-size:0.9rem;margin:0 0 20px;"><?php echo esc_html( $desc ); ?></p>
+            <?php endif; ?>
             <a href="<?php echo esc_url( $booking_url ); ?>" style="
                 display:inline-block;background:#4a7c6f;color:#fff;
                 text-decoration:none;padding:10px 24px;border-radius:6px;
