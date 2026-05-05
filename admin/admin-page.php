@@ -386,7 +386,15 @@
                 <tr>
                     <th>Notify Owner on New Booking</th>
                     <td>
+                        <label style="display:block;margin-bottom:6px;"><input type="checkbox" name="caswell_settings[owner_notify_email]" value="1" <?php checked( ! empty( $o['owner_notify_email'] ) || ! isset( $o['owner_notify_email'] ) ); ?> /> Send email to owner when a new booking is made</label>
                         <label><input type="checkbox" name="caswell_settings[owner_notify_sms]" value="1" <?php checked( ! empty( $o['owner_notify_sms'] ) ); ?> /> Send SMS to owner when a new booking is made</label>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="owner_notify_email_address">Owner Email Address</label></th>
+                    <td>
+                        <input type="email" id="owner_notify_email_address" name="caswell_settings[owner_notify_email_address]" value="<?php echo esc_attr( $o['owner_notify_email_address'] ?? '' ); ?>" class="regular-text" placeholder="<?php echo esc_attr( get_bloginfo( 'admin_email' ) ); ?>" />
+                        <p class="description">Where new-booking email alerts are sent. Leave blank to use the WordPress admin email (<code><?php echo esc_html( get_bloginfo( 'admin_email' ) ); ?></code>).</p>
                     </td>
                 </tr>
                 <tr>

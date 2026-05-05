@@ -163,9 +163,11 @@ class Caswell_Admin {
             $clean['default_open_end']   = '22:00';
         }
 
-        // Owner SMS notifications
-        $clean['owner_notify_sms']   = ! empty( $input['owner_notify_sms'] ) ? 1 : 0;
-        $clean['owner_notify_phone'] = sanitize_text_field( $input['owner_notify_phone'] ?? '' );
+        // Owner notifications (SMS + email)
+        $clean['owner_notify_sms']           = ! empty( $input['owner_notify_sms'] ) ? 1 : 0;
+        $clean['owner_notify_phone']         = sanitize_text_field( $input['owner_notify_phone'] ?? '' );
+        $clean['owner_notify_email']         = ! empty( $input['owner_notify_email'] ) ? 1 : 0;
+        $clean['owner_notify_email_address'] = sanitize_email( $input['owner_notify_email_address'] ?? '' );
 
         // Scheduling
         $clean['buffer_time'] = absint( $input['buffer_time'] ?? 15 );
