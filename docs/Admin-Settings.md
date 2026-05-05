@@ -10,7 +10,7 @@ OAuth2 credentials, calendar IDs, and the availability keyword (e.g., "Glow"). S
 
 ### Sessions
 
-Enabled session lengths (30, 60, and/or 90 minutes) and the default length.
+Enabled session lengths (any subset of 15, 30, 45, 60, 75, 90, 105, 120 minutes) and the default length. Pricing and Venmo rows in other tabs auto-follow the lengths enabled here.
 
 ### Availability
 

@@ -51,7 +51,7 @@ Remove all blocked time ranges from the available windows, producing a set of fr
 
 Break the free windows into discrete bookable time slots based on:
 
-- The selected **session length** (30, 60, or 90 minutes)
+- The selected **session length** (any length enabled in Settings → Sessions)
 - The configured **buffer time** between appointments (see [[Admin-Settings]])
 
 ## Event Management

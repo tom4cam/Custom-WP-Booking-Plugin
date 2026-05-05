@@ -44,7 +44,7 @@ Go to **Settings → Caswell Booking → Venmo**:
 | Field | Description |
 |-------|-------------|
 | Venmo Username | Your @username (shown to clients) |
-| Price — 30/60/90 min | Amount shown in the Venmo deep link |
+| Price — _N_ min | Amount shown in the Venmo deep link, one row per enabled session length |
 
 ### Client Flow
 

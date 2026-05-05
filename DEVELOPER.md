@@ -53,7 +53,7 @@ caswell-booking/
 | name | VARCHAR(120) | Client name |
 | email | VARCHAR(200) | Client email |
 | phone | VARCHAR(30) | Client phone |
-| session_length | SMALLINT | Duration in minutes (30/60/90) |
+| session_length | SMALLINT | Duration in minutes — see `caswell_session_length_options()` for offered values |
 | start_datetime | DATETIME | Appointment start |
 | end_datetime | DATETIME | Appointment end |
 | status | VARCHAR(30) | confirmed, pending, cancelled |
@@ -227,7 +227,7 @@ Both use transient flags (`caswell_reminder_sent_{id}`) to prevent double-sends.
 Settings stored in `caswell_settings` option (serialized array). Key groups:
 
 - **Google Calendar**: OAuth2 credentials, calendar IDs, keyword
-- **Sessions**: Enabled lengths (30/60/90), default length
+- **Sessions**: Enabled lengths (15-min increments from 15 to 120 — see `caswell_session_length_options()`), default length
 - **Availability**: Weekly schedule, minimum advance hours
 - **Square**: App ID, location ID, access token, sandbox mode
 - **Venmo**: Username, per-length pricing

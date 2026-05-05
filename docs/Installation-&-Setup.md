@@ -43,7 +43,7 @@ The plugin automatically:
 
 1. **Settings → Caswell Booking** — Configure all tabs
 2. **Google Calendar tab** — Set up OAuth2 (see [Google Calendar Setup](Google-Calendar-Setup))
-3. **Sessions tab** — Enable desired session lengths (30/60/90 min)
+3. **Sessions tab** — Enable the session lengths you want to offer (15-min increments from 15 to 120) and pick a default
 4. **Square tab** — Add payment credentials (see [Payment Configuration](Payment-Configuration))
 5. **Business Info tab** — Set your branding (see [White-Label Configuration](White-Label-Configuration))
 6. **SMS/Twilio tab** — Configure if using SMS notifications

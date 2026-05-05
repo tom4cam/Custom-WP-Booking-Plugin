@@ -13,7 +13,7 @@ Stores every individual appointment, including one-off bookings and individual o
 | `name` | VARCHAR(120) | Client name |
 | `email` | VARCHAR(200) | Client email |
 | `phone` | VARCHAR(30) | Client phone |
-| `session_length` | SMALLINT | Duration in minutes (30/60/90) |
+| `session_length` | SMALLINT | Duration in minutes (15-min increments, configurable per Settings → Sessions) |
 | `start_datetime` | DATETIME | Appointment start |
 | `end_datetime` | DATETIME | Appointment end |
 | `status` | VARCHAR(30) | `confirmed`, `pending`, or `cancelled` |
