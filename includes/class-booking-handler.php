@@ -356,7 +356,10 @@ class Caswell_Booking_Handler {
             'payment' => $payment_method,
         ] );
 
-        // Venmo info for response
+        // Venmo info for response. The Pay link is the same universal
+        // web URL used by the confirmation email/SMS — works on desktop
+        // browsers and auto-opens the Venmo app on mobile, unlike the
+        // older venmo:// app-scheme link.
         $venmo_user  = caswell_get_option( 'venmo_username' );
         $price_key   = "venmo_price_{$session_length}";
         $venmo_price = caswell_get_option( $price_key );
@@ -377,9 +380,7 @@ class Caswell_Booking_Handler {
             'start_label'   => wp_date( 'l, F j, Y \a\t g:i A', $start_ts ),
             'venmo_user'    => $venmo_user,
             'venmo_price'   => $venmo_price,
-            'venmo_link'    => $venmo_user
-                ? "venmo://paycharge?txn=pay&recipients={$venmo_user}&amount={$venmo_price}"
-                : '',
+            'venmo_link'    => caswell_venmo_payment_link( $booking ),
             'sms_sent'      => (bool) $sms_enabled,
             'sms_channel'   => $sms_enabled ? $channel : '',
             'email_sent'    => (bool) $email_sent,

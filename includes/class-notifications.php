@@ -279,6 +279,13 @@ class Caswell_Notifications {
         $template     = caswell_get_option( $template_key, $this->default_sms_template( $type ) );
         $message      = $this->interpolate( $template, $booking );
 
+        if ( 'confirmation' === $type ) {
+            $venmo_link = caswell_venmo_payment_link( $booking );
+            if ( $venmo_link ) {
+                $message .= "\n\nPay via Venmo: {$venmo_link}";
+            }
+        }
+
         $this->send_raw_sms( $this->format_phone( $booking->phone ), $message );
     }
 
