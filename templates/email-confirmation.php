@@ -23,7 +23,6 @@ $cancel_url     = caswell_booking_cancel_url( $booking );
   .detail-box table { width:100%; border-collapse:collapse; }
   .detail-box td { padding:6px 0; }
   .detail-box td:first-child { font-weight:600; color:#4a7c6f; width:40%; }
-  .cta-btn { display:block; width:fit-content; margin:24px auto; background:#4a7c6f; color:#fff; text-decoration:none; padding:14px 32px; border-radius:8px; font-weight:600; text-align:center; }
   .footer { background:#f0f0ee; padding:20px 32px; text-align:center; font-size:0.8rem; color:#888; }
   .footer a { color:#4a7c6f; }
 </style>
@@ -55,8 +54,12 @@ $cancel_url     = caswell_booking_cancel_url( $booking );
     <?php endif; ?>
 
     <p style="margin-top:24px;font-weight:600">Need to make a change?</p>
+    <?php $venmo_link = caswell_venmo_payment_link( $booking ); ?>
     <table role="presentation" style="margin:8px 0 16px;border-collapse:separate;border-spacing:8px 0">
       <tr>
+        <?php if ( $venmo_link ) : $venmo_amount = caswell_get_option( "venmo_price_{$booking->session_length}", '' ); ?>
+        <td><a href="<?php echo esc_url( $venmo_link ); ?>" style="display:inline-block;background:#3D95CE;color:#fff;text-decoration:none;padding:10px 18px;border-radius:6px;font-weight:600;font-size:0.95rem">Pay $<?php echo esc_html( $venmo_amount ); ?> with Venmo</a></td>
+        <?php endif; ?>
         <td><a href="<?php echo esc_url( $reschedule_url ); ?>" style="display:inline-block;background:#4a7c6f;color:#fff;text-decoration:none;padding:10px 18px;border-radius:6px;font-weight:600;font-size:0.95rem">Reschedule</a></td>
         <td><a href="<?php echo esc_url( $cancel_url ); ?>" style="display:inline-block;background:#fff;color:#c0392b;text-decoration:none;padding:10px 18px;border-radius:6px;font-weight:600;font-size:0.95rem;border:1px solid #c0392b">Cancel</a></td>
       </tr>
@@ -65,7 +68,7 @@ $cancel_url     = caswell_booking_cancel_url( $booking );
       Cancellations made <strong>less than 24 hours</strong> before the appointment are non-refundable.
     </p>
 
-    <a href="<?php echo esc_url( $site_url ); ?>" class="cta-btn">Visit Our Website</a>
+    <a href="<?php echo esc_url( $site_url ); ?>" style="display:block;width:fit-content;margin:24px auto;background:#4a7c6f;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;text-align:center;">Visit Our Website</a>
   </div>
   <div class="footer">
     <p>&copy; <?php echo date( 'Y' ); ?> <?php echo esc_html( $site_name ); ?>. All rights reserved.</p>
