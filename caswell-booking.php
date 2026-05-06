@@ -223,6 +223,57 @@ function caswell_business_address_html() {
 }
 
 /**
+ * Build a universal Venmo "pay" URL pre-loaded with the booking's amount
+ * and a memo identifying the appointment. Returns '' when the booking
+ * isn't a Venmo booking, has already been paid, or when the relevant
+ * settings (venmo_username, venmo_price_{length}) aren't configured.
+ *
+ * The web URL form (https://venmo.com/<user>?...) auto-redirects to the
+ * Venmo app on mobile and works as a clickable link on desktop, unlike
+ * the older venmo:// app-scheme URL.
+ *
+ * @param object $booking Row from wp_caswell_bookings.
+ * @return string         Pay URL or '' when no link should be shown.
+ */
+function caswell_venmo_payment_link( $booking ) {
+    if ( empty( $booking->payment_method ) || $booking->payment_method !== 'venmo' ) return '';
+    if ( ! empty( $booking->payment_status ) && $booking->payment_status === 'paid' ) return '';
+
+    $venmo_user = caswell_get_option( 'venmo_username', '' );
+    if ( '' === $venmo_user ) return '';
+    $venmo_user = ltrim( $venmo_user, '@' );
+
+    $price_key = "venmo_price_{$booking->session_length}";
+    $amount    = caswell_get_option( $price_key, '' );
+    if ( '' === $amount ) return '';
+
+    $service  = caswell_get_option( 'service_type', 'appointment' );
+    $start_ts = caswell_local_ts( $booking->start_datetime );
+
+    $parts        = preg_split( '/\s+/', trim( (string) $booking->name ) );
+    $client_first = $parts[0] ?? '';
+    $last_init    = '';
+    if ( count( $parts ) > 1 ) {
+        $last_init = ' ' . strtoupper( substr( end( $parts ), 0, 1 ) ) . '.';
+    }
+    $note = sprintf(
+        '%s %dmin — %s — %s%s',
+        ucfirst( $service ),
+        (int) $booking->session_length,
+        wp_date( 'M j, g:ia', $start_ts ),
+        $client_first,
+        $last_init
+    );
+
+    return sprintf(
+        'https://venmo.com/%s?txn=pay&amount=%s&note=%s',
+        rawurlencode( $venmo_user ),
+        rawurlencode( $amount ),
+        rawurlencode( $note )
+    );
+}
+
+/**
  * Log a message to the caswell debug log.
  * Logs are stored in wp-content/caswell-booking.log when WP_DEBUG is enabled,
  * or when the caswell_enable_logging option is set.
