@@ -109,6 +109,10 @@ class Caswell_Admin {
         $clean['email_reminder_subject']       = sanitize_text_field( $input['email_reminder_subject'] ?? '' );
         $clean['email_reminder_body']          = sanitize_textarea_field( $input['email_reminder_body'] ?? '' );
 
+        // Consent language (rendered on booking + register forms)
+        $clean['email_consent_text'] = sanitize_textarea_field( $input['email_consent_text'] ?? '' );
+        $clean['sms_consent_text']   = sanitize_textarea_field( $input['sms_consent_text']   ?? '' );
+
         // Notifications – SMS / Twilio
         $clean['twilio_account_sid']          = sanitize_text_field( $input['twilio_account_sid'] ?? '' );
         $clean['twilio_from_phone']           = sanitize_text_field( $input['twilio_from_phone'] ?? '' );

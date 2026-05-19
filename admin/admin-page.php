@@ -330,6 +330,29 @@
                     <td><textarea id="email_rem_body" name="caswell_settings[email_reminder_body]" rows="6" class="large-text"><?php echo esc_textarea( $o['email_reminder_body'] ?? '' ); ?></textarea></td>
                 </tr>
             </table>
+
+            <h3 style="margin-top:24px">Consent Language</h3>
+            <p class="description">
+                Required consent checkboxes shown on the booking and registration forms.
+                Use <code>{business_name}</code> to insert the configured business name
+                (falls back to the site name if empty).
+            </p>
+            <table class="form-table">
+                <tr>
+                    <th><label for="email_consent_text">Email Consent Text</label></th>
+                    <td>
+                        <textarea id="email_consent_text" name="caswell_settings[email_consent_text]" rows="3" class="large-text" placeholder="I agree to receive appointment confirmation and reminder emails from {business_name} at the email address provided."><?php echo esc_textarea( $o['email_consent_text'] ?? '' ); ?></textarea>
+                        <p class="description">Leave blank to use the default wording.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="sms_consent_text">SMS Consent Text</label></th>
+                    <td>
+                        <textarea id="sms_consent_text" name="caswell_settings[sms_consent_text]" rows="4" class="large-text" placeholder="I agree to receive appointment confirmation and reminder text messages from {business_name} at the phone number provided. Message frequency varies. Msg & data rates may apply. Reply STOP to opt out."><?php echo esc_textarea( $o['sms_consent_text'] ?? '' ); ?></textarea>
+                        <p class="description">Leave blank to use the default wording.</p>
+                    </td>
+                </tr>
+            </table>
         </div>
 
         <!-- ── SMS / Twilio ───────────────────────────────────────────── -->
