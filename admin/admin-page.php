@@ -1,6 +1,11 @@
 <?php defined( 'ABSPATH' ) || exit; ?>
 <div class="wrap caswell-admin">
-    <h1>Caswell Booking Settings</h1>
+    <h1 style="display:flex;align-items:center;gap:14px;">
+        <?php $caswell_admin_logo = caswell_branding_logo_url(); if ( $caswell_admin_logo ) : ?>
+            <img src="<?php echo esc_url( $caswell_admin_logo ); ?>" alt="" style="max-height:40px;width:auto;" />
+        <?php endif; ?>
+        Caswell Booking Settings
+    </h1>
 
     <?php settings_errors(); ?>
 
