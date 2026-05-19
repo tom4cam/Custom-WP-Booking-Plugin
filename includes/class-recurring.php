@@ -84,6 +84,9 @@ class Caswell_Recurring {
         $payment_status = $args['payment_status'] ?? 'unpaid';
         $payment_id     = $args['payment_id'] ?? '';
         $notes          = $args['notes'] ?? '';
+        $email_consent     = isset( $args['email_consent'] ) ? (int) $args['email_consent'] : 0;
+        $sms_consent       = isset( $args['sms_consent']   ) ? (int) $args['sms_consent']   : 0;
+        $consent_timestamp = $args['consent_timestamp'] ?? null;
 
         // Validate frequency
         if ( ! in_array( $frequency, [ 'weekly', 'biweekly', 'monthly' ], true ) ) {
@@ -155,6 +158,9 @@ class Caswell_Recurring {
                 'square_payment_id'  => $payment_id,
                 'recurring_series_id'=> $series_id,
                 'notes'              => $notes,
+                'email_consent'      => $email_consent,
+                'sms_consent'        => $sms_consent,
+                'consent_timestamp'  => $consent_timestamp,
             ] );
 
             if ( $booking_id ) {

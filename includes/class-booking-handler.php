@@ -118,6 +118,8 @@ class Caswell_Booking_Handler {
         $payment_method = sanitize_text_field( $_POST['payment_method'] ?? 'square' );
         $square_token   = sanitize_text_field( $_POST['square_token'] ?? '' );
         $notes          = sanitize_textarea_field( $_POST['notes'] ?? '' );
+        $email_consent  = ! empty( $_POST['email_consent'] ) ? 1 : 0;
+        $sms_consent    = ! empty( $_POST['sms_consent']   ) ? 1 : 0;
 
         // Reschedule mode — set when the form was loaded via the "Reschedule"
         // link in a confirmation email. The token authenticates the original
@@ -135,6 +137,24 @@ class Caswell_Booking_Handler {
                 $reschedule_for   = 0;
             }
         }
+        // Phone + consent enforcement (new in v1.5.3). Reschedules inherit
+        // the original booking's consent and don't re-prompt.
+        if ( ! $reschedule_for ) {
+            if ( '' === $phone ) {
+                wp_send_json_error( 'Please enter a phone number.' );
+            }
+            if ( ! $email_consent || ! $sms_consent ) {
+                wp_send_json_error( 'Please confirm both consent checkboxes to continue.' );
+            }
+            $consent_timestamp = current_time( 'mysql' );
+        } else {
+            $email_consent     = $original_booking ? (int) $original_booking->email_consent : 0;
+            $sms_consent       = $original_booking ? (int) $original_booking->sms_consent   : 0;
+            $consent_timestamp = $original_booking && ! empty( $original_booking->consent_timestamp )
+                ? $original_booking->consent_timestamp
+                : current_time( 'mysql' );
+        }
+
         // For reschedules we skip payment processing — the original payment
         // carries over. Force the new row to inherit the original's payment
         // metadata.
@@ -230,19 +250,22 @@ class Caswell_Booking_Handler {
         if ( $is_recurring ) {
             $recurring = new Caswell_Recurring();
             $result    = $recurring->create_series( [
-                'client_id'      => $client_id,
-                'name'           => $name,
-                'email'          => $email,
-                'phone'          => $phone,
-                'session_length' => $session_length,
-                'frequency'      => $rec_frequency,
-                'start_ts'       => $start_ts,
-                'end_date'       => $rec_end_date,
-                'occurrences'    => $rec_occurrences,
-                'payment_method' => $payment_method,
-                'payment_status' => $payment_status,
-                'payment_id'     => $payment_id,
-                'notes'          => $notes,
+                'client_id'         => $client_id,
+                'name'              => $name,
+                'email'             => $email,
+                'phone'             => $phone,
+                'session_length'    => $session_length,
+                'frequency'         => $rec_frequency,
+                'start_ts'          => $start_ts,
+                'end_date'          => $rec_end_date,
+                'occurrences'       => $rec_occurrences,
+                'payment_method'    => $payment_method,
+                'payment_status'    => $payment_status,
+                'payment_id'        => $payment_id,
+                'notes'             => $notes,
+                'email_consent'     => $email_consent,
+                'sms_consent'       => $sms_consent,
+                'consent_timestamp' => $consent_timestamp,
             ] );
             if ( is_wp_error( $result ) ) {
                 delete_transient( $lock_key );
@@ -265,6 +288,9 @@ class Caswell_Booking_Handler {
                 'payment_status'    => $payment_status,
                 'square_payment_id' => $payment_id,
                 'notes'             => $notes,
+                'email_consent'     => $email_consent,
+                'sms_consent'       => $sms_consent,
+                'consent_timestamp' => $consent_timestamp,
             ] );
         }
 
@@ -279,6 +305,15 @@ class Caswell_Booking_Handler {
             ] );
             wp_send_json_error( 'Failed to save booking. Please contact us.' );
         }
+
+        caswell_log( 'booking', 'Consent recorded', [
+            'booking_id'    => $booking_id,
+            'email'         => $email,
+            'email_consent' => $email_consent,
+            'sms_consent'   => $sms_consent,
+            'timestamp'     => $consent_timestamp,
+            'reschedule_of' => $reschedule_for ?: null,
+        ] );
 
         $booking = Caswell_Booking_DB::get_booking( $booking_id );
 
