@@ -238,3 +238,22 @@ Settings stored in `caswell_settings` option (serialized array). Key groups:
 - **SMS/Twilio**: Account SID, auth token, phone, templates, owner notifications
 - **Scheduling**: Buffer time, reminder timing, reminder types
 - **Business**: Phone, email, address, hours, bio, credentials, tagline, service pricing
+
+---
+
+## v1.5.4 additions
+
+**New option keys** (on the existing `caswell_settings` blob unless noted):
+
+- `branding_logo_url` (URL string) — site logo, set via the WP media library picker on Business Info tab
+- `branding_logo_id` (int) — attachment ID for the picker preview state
+- `caswell_privacy_page_id` (int, standalone option) — Privacy Policy page ID
+- `caswell_terms_page_id` (int, standalone option) — Terms of Use page ID
+
+**New helpers**:
+
+- `caswell_branding_logo_url()` — returns the configured logo URL or `''`
+- `caswell_legal_default_content( 'privacy' | 'terms' )` — returns the default page HTML, interpolated with `{business_name}`, `{practitioner_name}`, `{service_type}`, `{contact_email}`, `{site_url}`, `{state}` (hardcoded Utah), `{last_updated_date}`
+- `caswell_legal_page_url( 'privacy' | 'terms' )` — returns the live URL of the legal page, falling back to `home_url('/privacy-policy')` or `/terms-of-use` if the page ID isn't set
+
+Legal page content is stored as **plain HTML** so it edits cleanly in the Classic Editor as well as the Block Editor.
