@@ -230,8 +230,17 @@
             <div id="caswell-register-form-wrap" style="display:none;">
                 <!-- Registration form injected via account shortcode JS logic -->
                 <form id="caswell-quick-register">
-                    <input type="email" name="email" id="caswell-reg-email" placeholder="Email" />
-                    <input type="password" name="password" placeholder="Password (min 8 characters)" />
+                    <input type="email" name="email" id="caswell-reg-email" placeholder="Email" required />
+                    <input type="tel"   name="phone" id="caswell-reg-phone" placeholder="Phone *" required />
+                    <input type="password" name="password" placeholder="Password (min 8 characters)" required minlength="8" />
+                    <label class="caswell-consent-row">
+                        <input type="checkbox" name="email_consent" required checked />
+                        <span><?php echo esc_html( caswell_render_consent_text( 'email' ) ); ?></span>
+                    </label>
+                    <label class="caswell-consent-row">
+                        <input type="checkbox" name="sms_consent" required checked />
+                        <span><?php echo esc_html( caswell_render_consent_text( 'sms' ) ); ?></span>
+                    </label>
                     <button type="submit" class="caswell-btn caswell-btn-primary">Create Account</button>
                 </form>
             </div>

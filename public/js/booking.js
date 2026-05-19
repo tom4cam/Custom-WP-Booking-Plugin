@@ -100,15 +100,34 @@
 
         // Post-booking quick register
         $('#caswell-show-register').on('click', function () {
+            const $phone = $('#caswell-reg-phone');
+            if ($phone.length && !$phone.val()) {
+                $phone.val($('#caswell-phone').val());
+            }
             $('#caswell-register-form-wrap').slideToggle(200);
         });
         $(document).on('submit', '#caswell-quick-register', function (e) {
             e.preventDefault();
             const $form = $(this);
+            $form.find('p.caswell-error').remove();
+            const phone = $.trim($form.find('[name="phone"]').val() || $('#caswell-phone').val());
+            const emailConsent = $form.find('[name="email_consent"]').is(':checked');
+            const smsConsent   = $form.find('[name="sms_consent"]').is(':checked');
+            if (!phone) {
+                $form.prepend('<p class="caswell-error">Please enter your phone number.</p>');
+                return;
+            }
+            if (!emailConsent || !smsConsent) {
+                $form.prepend('<p class="caswell-error">Please confirm both consent checkboxes to create your account.</p>');
+                return;
+            }
             ajaxRequest('caswell_register', {
-                name: $('#caswell-name').val(),
-                email: $form.find('[name="email"]').val(),
-                password: $form.find('[name="password"]').val(),
+                name:          $('#caswell-name').val(),
+                email:         $form.find('[name="email"]').val(),
+                phone:         phone,
+                password:      $form.find('[name="password"]').val(),
+                email_consent: emailConsent ? 1 : 0,
+                sms_consent:   smsConsent   ? 1 : 0,
             }, function () {
                 $('#caswell-register-form-wrap').html('<p style="color:green;font-weight:600;">Account created!</p>');
             }, function (msg) {
