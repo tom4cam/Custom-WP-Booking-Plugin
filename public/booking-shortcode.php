@@ -212,6 +212,11 @@
             <p class="caswell-opt-in-notice">
                 Cancellations made less than 24 hours before the appointment are non-refundable.
             </p>
+            <p class="caswell-legal-links" style="font-size:0.78rem;color:#888;margin:8px 0 0;text-align:center;">
+                <a href="<?php echo esc_url( caswell_legal_page_url( 'privacy' ) ); ?>" style="color:#888;">Privacy Policy</a>
+                &middot;
+                <a href="<?php echo esc_url( caswell_legal_page_url( 'terms' ) ); ?>" style="color:#888;">Terms of Use</a>
+            </p>
         </form>
     </div>
 

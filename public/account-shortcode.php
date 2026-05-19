@@ -219,4 +219,10 @@ if ( 'success' === $verification ) :
 
 <?php endif; ?>
 
+    <p class="caswell-legal-links" style="text-align:center;margin:32px 0 0;font-size:0.82rem;color:#888;">
+        <a href="<?php echo esc_url( caswell_legal_page_url( 'privacy' ) ); ?>" style="color:#888;">Privacy Policy</a>
+        &middot;
+        <a href="<?php echo esc_url( caswell_legal_page_url( 'terms' ) ); ?>" style="color:#888;">Terms of Use</a>
+    </p>
+
 </div>
