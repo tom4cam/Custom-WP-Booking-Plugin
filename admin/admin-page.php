@@ -16,7 +16,8 @@
 
         <!-- ── Tab navigation ─────────────────────────────────────────── -->
         <nav class="caswell-tabs">
-            <a href="#tab-gcal"         class="caswell-tab active">Google Calendar</a>
+            <a href="#tab-bookings" class="caswell-tab active">Bookings</a>
+            <a href="#tab-gcal"         class="caswell-tab">Google Calendar</a>
             <a href="#tab-sessions"     class="caswell-tab">Sessions</a>
             <a href="#tab-availability" class="caswell-tab">Availability</a>
             <a href="#tab-square"       class="caswell-tab">Square</a>
@@ -25,12 +26,11 @@
             <a href="#tab-sms"      class="caswell-tab">SMS / Twilio</a>
             <a href="#tab-schedule" class="caswell-tab">Scheduling</a>
             <a href="#tab-business" class="caswell-tab">Business Info</a>
-            <a href="#tab-bookings" class="caswell-tab">Bookings</a>
             <a href="#tab-tools"    class="caswell-tab">Tools</a>
         </nav>
 
         <!-- ── Google Calendar ────────────────────────────────────────── -->
-        <div id="tab-gcal" class="caswell-tab-content active">
+        <div id="tab-gcal" class="caswell-tab-content">
             <h2>Google Calendar — OAuth2 Setup</h2>
             <p class="description">
                 <strong>One-time setup:</strong>
@@ -591,7 +591,7 @@
         </div>
 
         <!-- ── Bookings ────────────────────────────────────────────────── -->
-        <div id="tab-bookings" class="caswell-tab-content">
+        <div id="tab-bookings" class="caswell-tab-content active">
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:6px">
                 <h2 style="margin:0">Bookings</h2>
                 <button type="button" class="button button-primary" id="caswell-new-booking-btn">+ New booking</button>
