@@ -408,12 +408,28 @@
         $(document).on('submit', '#caswell-register-form-main', function (e) {
             e.preventDefault();
             const $form = $(this);
-            const $err  = $('#caswell-reg-error');
-            $err.hide();
+            const $err  = $('#caswell-reg-error').hide().text('');
+            const name     = $.trim($('#reg-name').val());
+            const email    = $.trim($('#reg-email').val());
+            const phone    = $.trim($('#reg-phone').val());
+            const password = $('#reg-password').val();
+            const emailConsent = $('#reg-email-consent').is(':checked');
+            const smsConsent   = $('#reg-sms-consent').is(':checked');
+            if (!name || !email || !phone || !password) {
+                $err.text('Please fill in name, email, phone, and password.').show();
+                return;
+            }
+            if (!emailConsent || !smsConsent) {
+                $err.text('Please confirm both consent checkboxes to create your account.').show();
+                return;
+            }
             ajaxRequest('caswell_register', {
-                name:     $form.find('[name="name"]').val(),
-                email:    $form.find('[name="email"]').val(),
-                password: $form.find('[name="password"]').val(),
+                name:          name,
+                email:         email,
+                phone:         phone,
+                password:      password,
+                email_consent: emailConsent ? 1 : 0,
+                sms_consent:   smsConsent   ? 1 : 0,
             }, function () {
                 window.location.reload();
             }, function (msg) {

@@ -186,16 +186,30 @@ if ( 'success' === $verification ) :
         <div id="caswell-auth-register" class="caswell-auth-panel" style="display:none;">
             <form id="caswell-register-form-main">
                 <div class="caswell-field">
-                    <label for="reg-name">Full Name</label>
+                    <label for="reg-name">Full Name <span class="required">*</span></label>
                     <input type="text" id="reg-name" name="name" required />
                 </div>
                 <div class="caswell-field">
-                    <label for="reg-email">Email</label>
+                    <label for="reg-email">Email <span class="required">*</span></label>
                     <input type="email" id="reg-email" name="email" required />
+                </div>
+                <div class="caswell-field">
+                    <label for="reg-phone">Phone <span class="required">*</span></label>
+                    <input type="tel" id="reg-phone" name="phone" required />
                 </div>
                 <div class="caswell-field">
                     <label for="reg-password">Password <small>(min 8 characters)</small></label>
                     <input type="password" id="reg-password" name="password" required minlength="8" />
+                </div>
+                <div class="caswell-consent-section">
+                    <label class="caswell-consent-row">
+                        <input type="checkbox" name="email_consent" id="reg-email-consent" required />
+                        <span><?php echo esc_html( caswell_render_consent_text( 'email' ) ); ?></span>
+                    </label>
+                    <label class="caswell-consent-row">
+                        <input type="checkbox" name="sms_consent" id="reg-sms-consent" required />
+                        <span><?php echo esc_html( caswell_render_consent_text( 'sms' ) ); ?></span>
+                    </label>
                 </div>
                 <div class="caswell-error" id="caswell-reg-error" style="display:none;"></div>
                 <button type="submit" class="caswell-btn caswell-btn-primary">Create Account</button>
