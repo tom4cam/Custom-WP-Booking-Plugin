@@ -63,12 +63,21 @@ class Caswell_Auth {
             wp_send_json_error( 'Too many attempts. Please try again later.' );
         }
 
-        $name     = sanitize_text_field( $_POST['name'] ?? '' );
-        $email    = sanitize_email( $_POST['email'] ?? '' );
-        $password = $_POST['password'] ?? '';  // Will be hashed by WP
+        $name          = sanitize_text_field( $_POST['name'] ?? '' );
+        $email         = sanitize_email( $_POST['email'] ?? '' );
+        $phone         = sanitize_text_field( $_POST['phone'] ?? '' );
+        $password      = $_POST['password'] ?? '';  // Will be hashed by WP
+        $email_consent = ! empty( $_POST['email_consent'] ) ? 1 : 0;
+        $sms_consent   = ! empty( $_POST['sms_consent']   ) ? 1 : 0;
 
         if ( ! $name || ! $email || ! $password ) {
             wp_send_json_error( 'Please fill in your name, email, and password.' );
+        }
+        if ( ! $phone ) {
+            wp_send_json_error( 'Please enter your phone number.' );
+        }
+        if ( ! $email_consent || ! $sms_consent ) {
+            wp_send_json_error( 'Please confirm both consent checkboxes to create your account.' );
         }
         if ( ! is_email( $email ) ) {
             wp_send_json_error( 'Invalid email address.' );
@@ -90,6 +99,18 @@ class Caswell_Auth {
         $user = new WP_User( $user_id );
         $user->set_role( self::ROLE );
         wp_update_user( [ 'ID' => $user_id, 'display_name' => $name ] );
+
+        update_user_meta( $user_id, 'caswell_phone',              $phone );
+        update_user_meta( $user_id, '_caswell_email_consent',     $email_consent );
+        update_user_meta( $user_id, '_caswell_sms_consent',       $sms_consent );
+        update_user_meta( $user_id, '_caswell_consent_timestamp', current_time( 'mysql' ) );
+
+        caswell_log( 'auth', 'Registration consent recorded', [
+            'user_id'       => $user_id,
+            'email'         => $email,
+            'email_consent' => $email_consent,
+            'sms_consent'   => $sms_consent,
+        ] );
 
         // Send verification email
         $this->send_verification_email( $user_id, $email, $name );
