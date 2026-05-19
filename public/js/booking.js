@@ -225,13 +225,27 @@
         // Validate
         const name  = $.trim($('#caswell-name').val());
         const email = $.trim($('#caswell-email').val());
+        const phone = $.trim($('#caswell-phone').val());
         if (!name || !email) {
             showFormError('Please fill in your name and email.');
             $btn.prop('disabled', false).text('Confirm Booking');
             return;
         }
+        if (!phone) {
+            showFormError('Please enter your phone number.');
+            $btn.prop('disabled', false).text('Confirm Booking');
+            return;
+        }
         if (!selectedStartTs) {
             showFormError('Please select a time slot.');
+            $btn.prop('disabled', false).text('Confirm Booking');
+            return;
+        }
+        const isReschedule = !!$('#caswell-reschedule-for').val();
+        const emailConsent = $('#caswell-email-consent').is(':checked');
+        const smsConsent   = $('#caswell-sms-consent').is(':checked');
+        if (!isReschedule && (!emailConsent || !smsConsent)) {
+            showFormError('Please confirm both consent checkboxes to continue.');
             $btn.prop('disabled', false).text('Confirm Booking');
             return;
         }
@@ -265,12 +279,14 @@
         const data = {
             name:            name,
             email:           email,
-            phone:           $('#caswell-phone').val(),
+            phone:           phone,
             session_length:  selectedLength,
             start_ts:        selectedStartTs,
             payment_method:  paymentMethod,
             square_token:    squareToken,
             notes:           $('#caswell-notes').val(),
+            email_consent:   emailConsent ? 1 : 0,
+            sms_consent:     smsConsent   ? 1 : 0,
             recurring:       $('#caswell-recurring-check').is(':checked') ? 1 : 0,
             rec_frequency:   $('#caswell-rec-freq').val(),
             rec_end_date:    $('#caswell-rec-end').val(),
