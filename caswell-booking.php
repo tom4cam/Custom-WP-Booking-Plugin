@@ -97,6 +97,34 @@ function caswell_create_pages() {
             update_option( 'caswell_account_page_id', $page_id );
         }
     }
+
+    // Privacy Policy
+    if ( ! get_option( 'caswell_privacy_page_id' ) ) {
+        $page_id = wp_insert_post( [
+            'post_title'   => 'Privacy Policy',
+            'post_name'    => 'privacy-policy',
+            'post_status'  => 'publish',
+            'post_type'    => 'page',
+            'post_content' => caswell_legal_default_content( 'privacy' ),
+        ] );
+        if ( $page_id && ! is_wp_error( $page_id ) ) {
+            update_option( 'caswell_privacy_page_id', $page_id );
+        }
+    }
+
+    // Terms of Use
+    if ( ! get_option( 'caswell_terms_page_id' ) ) {
+        $page_id = wp_insert_post( [
+            'post_title'   => 'Terms of Use',
+            'post_name'    => 'terms-of-use',
+            'post_status'  => 'publish',
+            'post_type'    => 'page',
+            'post_content' => caswell_legal_default_content( 'terms' ),
+        ] );
+        if ( $page_id && ! is_wp_error( $page_id ) ) {
+            update_option( 'caswell_terms_page_id', $page_id );
+        }
+    }
 }
 
 /* ── Bootstrap ─────────────────────────────────────────────────────────── */
@@ -106,6 +134,11 @@ function caswell_init() {
     // Run DB migrations on existing installs without needing re-activation
     if ( (int) get_option( 'caswell_db_version', 0 ) < Caswell_Booking_DB::BOOKINGS_VERSION ) {
         Caswell_Booking_DB::create_tables();
+    }
+
+    // Auto-create Privacy/Terms pages on upgrade if missing (v1.5.4+)
+    if ( ! get_option( 'caswell_privacy_page_id' ) || ! get_option( 'caswell_terms_page_id' ) ) {
+        caswell_create_pages();
     }
 
     new Caswell_Admin();
