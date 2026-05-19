@@ -186,6 +186,8 @@ class Caswell_Admin {
         }
 
         // White-label / Branding
+        $clean['branding_logo_url']  = esc_url_raw( $input['branding_logo_url'] ?? '' );
+        $clean['branding_logo_id']   = absint( $input['branding_logo_id']  ?? 0 );
         $clean['business_name']      = sanitize_text_field( $input['business_name'] ?? '' );
         $clean['practitioner_name']  = sanitize_text_field( $input['practitioner_name'] ?? '' );
         $clean['service_type']       = sanitize_text_field( $input['service_type'] ?? '' );
