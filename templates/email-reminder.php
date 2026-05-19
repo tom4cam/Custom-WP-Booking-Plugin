@@ -26,6 +26,11 @@ $site_url  = get_bloginfo( 'url' );
 </head>
 <body>
 <div class="wrapper">
+  <?php $caswell_email_logo = caswell_branding_logo_url(); if ( $caswell_email_logo ) : ?>
+  <div style="background:#fff;padding:20px 32px;text-align:center;">
+    <img src="<?php echo esc_url( $caswell_email_logo ); ?>" alt="<?php echo esc_attr( get_bloginfo( 'name' ) ); ?>" style="max-height:56px;width:auto;display:inline-block;border:0;" />
+  </div>
+  <?php endif; ?>
   <div class="header">
     <span class="icon">🗓</span>
     <h1>Appointment Reminder</h1>
