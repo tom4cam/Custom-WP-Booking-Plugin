@@ -70,6 +70,11 @@ $site_url  = get_bloginfo( 'url' );
   <div class="footer">
     <p>&copy; <?php echo date( 'Y' ); ?> <?php echo esc_html( $site_name ); ?>. All rights reserved.</p>
     <p><a href="<?php echo esc_url( $site_url ); ?>"><?php echo esc_html( $site_url ); ?></a></p>
+    <p style="margin:6px 0 0;">
+        <a href="<?php echo esc_url( caswell_legal_page_url( 'privacy' ) ); ?>" style="color:#4a7c6f;">Privacy</a>
+        &middot;
+        <a href="<?php echo esc_url( caswell_legal_page_url( 'terms' ) ); ?>" style="color:#4a7c6f;">Terms</a>
+    </p>
     <?php
     $reply_to = caswell_get_option( 'email_from_address', get_bloginfo( 'admin_email' ) );
     if ( $reply_to ) :

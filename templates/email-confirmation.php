@@ -78,6 +78,11 @@ $cancel_url     = caswell_booking_cancel_url( $booking );
   <div class="footer">
     <p>&copy; <?php echo date( 'Y' ); ?> <?php echo esc_html( $site_name ); ?>. All rights reserved.</p>
     <p><a href="<?php echo esc_url( $site_url ); ?>"><?php echo esc_html( $site_url ); ?></a></p>
+    <p style="margin:6px 0 0;">
+        <a href="<?php echo esc_url( caswell_legal_page_url( 'privacy' ) ); ?>" style="color:#4a7c6f;">Privacy</a>
+        &middot;
+        <a href="<?php echo esc_url( caswell_legal_page_url( 'terms' ) ); ?>" style="color:#4a7c6f;">Terms</a>
+    </p>
   </div>
 </div>
 </body>
