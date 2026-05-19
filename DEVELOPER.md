@@ -62,6 +62,9 @@ caswell-booking/
 | square_payment_id | VARCHAR(100) | Square payment ID (for refunds) |
 | recurring_series_id | BIGINT | FK to series table (nullable) |
 | notes | TEXT | Client notes |
+| email_consent | TINYINT(1) | 1 if client ticked the email consent box (v1.5.3+) |
+| sms_consent | TINYINT(1) | 1 if client ticked the SMS consent box (v1.5.3+) |
+| consent_timestamp | DATETIME (nullable) | When consent was captured (v1.5.3+) |
 | created_at | DATETIME | Creation timestamp |
 
 ### `wp_caswell_recurring_series`
