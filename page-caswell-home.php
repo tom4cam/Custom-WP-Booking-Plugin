@@ -229,6 +229,11 @@ body { margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system,
 
 <!-- ── Footer ─────────────────────────────────────────────────────── -->
 <footer style="background:#1e1e1e;color:#aaa;text-align:center;padding:28px 20px;font-size:0.88rem;">
+    <p style="margin:0 0 10px;font-size:0.82rem;">
+        <a href="<?php echo esc_url( caswell_legal_page_url( 'privacy' ) ); ?>" style="color:#aaa;text-decoration:none;">Privacy Policy</a>
+        <span style="margin:0 8px;color:#555;">&middot;</span>
+        <a href="<?php echo esc_url( caswell_legal_page_url( 'terms' ) ); ?>" style="color:#aaa;text-decoration:none;">Terms of Use</a>
+    </p>
     <p style="margin:0 0 6px;">&copy; <?php echo date('Y'); ?> <?php echo esc_html( $site_name ); ?>. All rights reserved.</p>
     <?php if ( $venmo_user ) : ?>
     <p style="margin:0;">
