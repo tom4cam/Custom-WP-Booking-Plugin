@@ -33,6 +33,7 @@ foreach ( [
 require_once CASWELL_PLUGIN_DIR . 'includes/session-lengths.php';
 require_once CASWELL_PLUGIN_DIR . 'includes/consent.php';
 require_once CASWELL_PLUGIN_DIR . 'includes/branding.php';
+require_once CASWELL_PLUGIN_DIR . 'includes/legal-pages.php';
 
 /* ── Activation / Deactivation ─────────────────────────────────────────── */
 register_activation_hook( __FILE__, 'caswell_activate' );
