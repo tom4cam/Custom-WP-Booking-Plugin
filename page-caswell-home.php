@@ -43,8 +43,12 @@ body { margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system,
     display: flex; align-items: center; justify-content: space-between;
     padding: 0 5%; box-shadow: 0 1px 8px rgba(0,0,0,0.08);
 ">
-    <a href="#" style="font-size:1.15rem;font-weight:700;color:#4a7c6f;text-decoration:none;">
-        <?php echo esc_html( $site_name ); ?>
+    <a href="#" style="display:flex;align-items:center;text-decoration:none;">
+        <?php $caswell_nav_logo = caswell_branding_logo_url(); if ( $caswell_nav_logo ) : ?>
+            <img src="<?php echo esc_url( $caswell_nav_logo ); ?>" alt="<?php echo esc_attr( $site_name ); ?>" style="max-height:44px;width:auto;display:block;" />
+        <?php else : ?>
+            <span style="font-size:1.15rem;font-weight:700;color:#4a7c6f;"><?php echo esc_html( $site_name ); ?></span>
+        <?php endif; ?>
     </a>
     <div style="display:flex;align-items:center;gap:24px;" class="cw-navlinks">
         <a href="#services" style="text-decoration:none;color:#555;font-weight:500;">Services</a>
