@@ -112,8 +112,8 @@
                            value="<?php echo $is_logged_in ? esc_attr( $current_user->user_email ) : ''; ?>" />
                 </div>
                 <div class="caswell-field">
-                    <label for="caswell-phone">Phone</label>
-                    <input type="tel" id="caswell-phone" name="phone"
+                    <label for="caswell-phone">Phone <span class="required">*</span></label>
+                    <input type="tel" id="caswell-phone" name="phone" required
                            value="<?php echo $is_logged_in ? esc_attr( get_user_meta( $current_user->ID, 'caswell_phone', true ) ) : ''; ?>" />
                 </div>
             </div>
@@ -181,6 +181,19 @@
                 </div>
             </div>
 
+            <?php if ( ! $reschedule_booking ) : ?>
+            <div class="caswell-consent-section">
+                <label class="caswell-consent-row">
+                    <input type="checkbox" name="email_consent" id="caswell-email-consent" required />
+                    <span><?php echo esc_html( caswell_render_consent_text( 'email' ) ); ?></span>
+                </label>
+                <label class="caswell-consent-row">
+                    <input type="checkbox" name="sms_consent" id="caswell-sms-consent" required />
+                    <span><?php echo esc_html( caswell_render_consent_text( 'sms' ) ); ?></span>
+                </label>
+            </div>
+            <?php endif; ?>
+
             <div id="caswell-form-error" class="caswell-error" style="display:none;"></div>
 
             <div class="caswell-form-actions">
@@ -191,9 +204,7 @@
             </div>
 
             <p class="caswell-opt-in-notice">
-                By booking on this website you agree to receive appointment confirmation
-                and reminder emails and text messages. Cancellations made less than 24 hours
-                before the appointment are non-refundable.
+                Cancellations made less than 24 hours before the appointment are non-refundable.
             </p>
         </form>
     </div>

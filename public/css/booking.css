@@ -742,3 +742,11 @@
     font-size: 0.9rem;
 }
 .cw-footer a { color: var(--cw-accent); text-decoration: none; }
+
+/* Consent checkboxes (v1.5.3) */
+.caswell-consent-section { margin: 16px 0 8px; padding: 12px 14px; background: #f7faf9; border-radius: 6px; border: 1px solid #e0ece8; }
+.caswell-consent-row { display: flex; gap: 10px; align-items: flex-start; margin: 8px 0; font-size: 0.86rem; color: #444; line-height: 1.45; cursor: pointer; }
+.caswell-consent-row:first-child { margin-top: 0; }
+.caswell-consent-row:last-child  { margin-bottom: 0; }
+.caswell-consent-row input[type="checkbox"] { margin-top: 3px; flex: 0 0 auto; }
+.caswell-consent-row span { flex: 1; }
