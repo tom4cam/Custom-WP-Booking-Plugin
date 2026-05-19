@@ -3,7 +3,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Caswell_Booking_DB {
 
-    const BOOKINGS_VERSION = 4;
+    const BOOKINGS_VERSION = 5;
 
     public static function create_tables() {
         global $wpdb;
@@ -26,6 +26,9 @@ class Caswell_Booking_DB {
             gcal_shared_event_id  VARCHAR(255) NOT NULL DEFAULT '',
             recurring_series_id BIGINT UNSIGNED DEFAULT NULL,
             notes              TEXT,
+            email_consent      TINYINT(1)      NOT NULL DEFAULT 0,
+            sms_consent        TINYINT(1)      NOT NULL DEFAULT 0,
+            consent_timestamp  DATETIME        NULL DEFAULT NULL,
             created_at         DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             KEY client_id (client_id),
@@ -88,6 +91,9 @@ class Caswell_Booking_DB {
             'square_payment_id'  => '',
             'recurring_series_id'=> null,
             'notes'              => '',
+            'email_consent'      => 0,
+            'sms_consent'        => 0,
+            'consent_timestamp'  => null,
             'created_at'         => current_time( 'mysql' ),
         ];
         $row = array_merge( $defaults, $data );
