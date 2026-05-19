@@ -2,6 +2,12 @@
 
 <div id="caswell-booking-wrap" class="caswell-booking-wrap">
 
+    <?php $caswell_widget_logo = caswell_branding_logo_url(); if ( $caswell_widget_logo ) : ?>
+    <div class="caswell-widget-header">
+        <img src="<?php echo esc_url( $caswell_widget_logo ); ?>" alt="<?php echo esc_attr( get_bloginfo( 'name' ) ); ?>" />
+    </div>
+    <?php endif; ?>
+
     <?php
     $current_user    = wp_get_current_user();
     /**

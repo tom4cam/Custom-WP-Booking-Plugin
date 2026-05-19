@@ -750,3 +750,7 @@
 .caswell-consent-row:last-child  { margin-bottom: 0; }
 .caswell-consent-row input[type="checkbox"] { margin-top: 3px; flex: 0 0 auto; }
 .caswell-consent-row span { flex: 1; }
+
+/* Widget logo header (v1.5.4) */
+.caswell-widget-header { text-align: center; margin: 0 0 18px; }
+.caswell-widget-header img { max-height: 40px; width: auto; display: inline-block; }
