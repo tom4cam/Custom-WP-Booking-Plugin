@@ -241,6 +241,8 @@ class Caswell_Admin {
     public function enqueue_admin_assets( $hook ) {
         if ( 'settings_page_caswell-booking' !== $hook ) return;
         wp_enqueue_style( 'caswell-admin', CASWELL_PLUGIN_URL . 'admin/admin.css', [], CASWELL_VERSION );
+        wp_enqueue_media();
+        wp_enqueue_script( 'caswell-admin-logo-picker', CASWELL_PLUGIN_URL . 'admin/admin-logo-picker.js', [ 'jquery' ], CASWELL_VERSION, true );
         wp_add_inline_script( 'jquery', 'var caswellAdminData = ' . wp_json_encode( [
             'ajax_url' => admin_url( 'admin-ajax.php' ),
             'nonce'    => wp_create_nonce( 'caswell_admin_nonce' ),

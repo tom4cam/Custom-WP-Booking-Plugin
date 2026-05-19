@@ -460,6 +460,27 @@
             <p class="description">These fields control how your business appears throughout the site, emails, SMS, and calendar events. Leave blank to use defaults.</p>
             <table class="form-table">
                 <tr>
+                    <th><label>Site Logo</label></th>
+                    <td>
+                        <div class="caswell-logo-picker">
+                            <input type="hidden" id="branding_logo_url" name="caswell_settings[branding_logo_url]" value="<?php echo esc_attr( $o['branding_logo_url'] ?? '' ); ?>" />
+                            <input type="hidden" id="branding_logo_id"  name="caswell_settings[branding_logo_id]"  value="<?php echo esc_attr( $o['branding_logo_id']  ?? '' ); ?>" />
+                            <div class="caswell-logo-preview" style="margin-bottom:8px;">
+                                <?php if ( ! empty( $o['branding_logo_url'] ) ) : ?>
+                                    <img src="<?php echo esc_url( $o['branding_logo_url'] ); ?>" alt="" style="max-height:80px;max-width:300px;" />
+                                <?php else : ?>
+                                    <span class="description">No logo selected.</span>
+                                <?php endif; ?>
+                            </div>
+                            <p>
+                                <button type="button" class="button" id="caswell-logo-choose">Choose Logo</button>
+                                <button type="button" class="button-link" id="caswell-logo-remove" <?php echo empty( $o['branding_logo_url'] ) ? 'style="display:none"' : ''; ?>>Remove</button>
+                            </p>
+                            <p class="description">Shown on the home page, booking widget, confirmation/reminder emails, and this admin page. Recommended: a transparent-background PNG or SVG sized around 200&times;60.</p>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
                     <th><label for="business_name">Business Name</label></th>
                     <td>
                         <input type="text" id="business_name" name="caswell_settings[business_name]" value="<?php echo esc_attr( $o['business_name'] ?? '' ); ?>" class="regular-text" placeholder="<?php echo esc_attr( get_bloginfo( 'name' ) ); ?>" />
